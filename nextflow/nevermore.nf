@@ -7,7 +7,7 @@ if (!params.file_pattern) {
 }
 
 if (!params.single_file_pattern) {
-	params.single_file_pattern = false
+	params.single_file_pattern = "**singles.fastq.gz"
 }
 
 if (!params.publish_mode) {
@@ -21,8 +21,9 @@ if (!params.output_dir) {
 output_dir = "${params.output_dir}"
 
 suffix_pattern = params.file_pattern.replaceAll(/\*\*/, "").substring(4)
+single_suffix_pattern = params.single_file_pattern.replaceAll(/\*\*/, "").substring(7)
 
-
+//qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
 
 process qc_preprocess {
 	conda "bioconda::bbmap"
@@ -33,28 +34,49 @@ process qc_preprocess {
 
 	output:
 	stdout
-	path "${sample}.qc_R1.fastq.gz"
-    path "${sample}.qc_R2.fastq.gz", optional: true
-	path "${sample}.qc_S1.fastq.gz", optional: true
+	path "${sample}/${sample}.qc_R1.fastq.gz"
+    path "${sample}/${sample}.qc_R2.fastq.gz", optional: true
+	path "${sample}/${sample}.qc_S1.fastq.gz", emit: singles_fq
 
 	script:
 	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
 	def r1_index = reads[0].name.endsWith("1${suffix_pattern}") ? 0 : 1
-	def r1 = "in=" + reads[r1_index] + " out=${sample}.qc_R1.fastq.gz"
-	def r2 = file(reads[1]) ? "in2=" + ( reads[ r1_index == 0 ? 1 : 0 ] + " out2=${sample}.qc_R2.fastq.gz outs=${sample}.qc_S1.fastq.gz" ) : ""
+	def r1 = "in=" + reads[r1_index] + " out=${sample}/${sample}.qc_R1.fastq.gz"
+	def r2 = file(reads[1]) ? "in2=" + ( reads[ r1_index == 0 ? 1 : 0 ] + " out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_S1.fastq.gz" ) : ""
 
 	"""
 	maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
 	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} ${r1} ${r2}
+	touch ${sample}/${sample}.qc_S1.fastq.gz
+	"""
+}
+
+process qc_preprocess_singles {
+	conda "bioconda::bbmap"
+	publishDir "$output_dir", mode: params.publish_mode
+
+	input:
+	tuple val(sample), path(reads)
+	path(singles)
+
+	output:
+	stdout
+	path "${sample}/${sample}.qc_U.fastq.gz"
+
+	script:
+	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
+
+	"""
+	maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
+	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} in=${reads[0]} out=${sample}/${sample}.qc_S.fastq.gz
+	cat ${singles} ${sample}/${sample}.qc_S.fastq.gz > ${sample}/${sample}.qc_U.fastq.gz
 	"""
 }
 
 
 
-
-
 workflow {
-	samples_ch = Channel
+	reads_ch = Channel
 	    .fromPath(params.input_dir + "/" + params.file_pattern)
     	.map { file ->
         	def sample = file.name.replaceAll(suffix_pattern, "")
@@ -62,8 +84,20 @@ workflow {
 	        return tuple(sample, file)
     	}
 	    .groupTuple()
-	samples_ch.view()
-	qc_preprocess(samples_ch)
+	reads_ch.view()
+
+	aux_reads_ch = Channel
+		.fromPath(params.input_dir + "/" + params.single_file_pattern)
+		.map { file ->
+			def sample = file.name.replaceAll(single_suffix_pattern, "")
+			sample = sample.replaceAll(/.singles/, "")
+			return tuple(sample, file)
+		}
+		.groupTuple()
+	aux_reads_ch.view()
+
+	qc_preprocess(reads_ch)
+	qc_preprocess_singles(aux_reads_ch, qc_preprocess.out.singles_fq)
 }
 
 
