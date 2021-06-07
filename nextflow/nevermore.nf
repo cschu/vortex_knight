@@ -34,8 +34,9 @@ process qc_preprocess {
 
 	output:
 	stdout
-	path "${sample}/${sample}.qc_R1.fastq.gz"
-    path "${sample}/${sample}.qc_R2.fastq.gz", optional: true
+	val "${sample}", emit: sample_id
+	path "${sample}/${sample}.qc_R1.fastq.gz", emit: r1_fq
+    path "${sample}/${sample}.qc_R2.fastq.gz", optional: true, emit: r2_fq
 	path "${sample}/${sample}.qc_S1.fastq.gz", emit: singles_fq
 
 	script:
@@ -61,7 +62,8 @@ process qc_preprocess_singles {
 
 	output:
 	stdout
-	path "${sample}/${sample}.qc_U.fastq.gz"
+	val "$sample", emit: sample_id
+	path "${sample}/${sample}.qc_U.fastq.gz", emit: u_fq
 
 	script:
 	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
@@ -71,6 +73,58 @@ process qc_preprocess_singles {
 	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} in=${reads[0]} out=${sample}/${sample}.qc_S.fastq.gz
 	cat ${singles} ${sample}/${sample}.qc_S.fastq.gz > ${sample}/${sample}.qc_U.fastq.gz
 	"""
+}
+
+process decontaminate {
+	conda "bioconda::bwa bioconda::'samtools>=1.11'"
+	publishDir "$output_dir", mode: params.publish_mode
+
+	input:
+	val(sample)
+	path(reads1)
+	path(reads2)
+
+	output:
+	stdout
+	val "$sample", emit: sample_id
+	path "${sample}/${sample}.no_human_R1.fastq.gz", emit: r1_fq
+	path "${sample}/${sample}.no_human_R2.fastq.gz", optional: true, emit: r2_fq
+
+	script:
+	def r1 = reads1
+	def r2 = file(reads2) ? reads2 : ""
+
+	def r1_out = "-1 ${sample}/${sample}.no_human_R1.fastq.gz"
+	def r2_out = file(reads2) ? "-2 ${sample}/${sample}.no_human_R2.fastq.gz" : ""
+
+	"""
+	cpus=\$(expr \"$task.cpus\" - 4)
+	mkdir -p $sample
+	bwa mem -t \$cpus ${params.human_ref} ${r1} ${r2} | samtools collate --threads 2 -f -O - | samtools fastq -@ 2 -f 4 ${r1_out} ${r2_out} -s singletons.fastq.gz -
+	"""
+}
+
+process decontaminate_singles {
+	conda "bioconda::bwa bioconda::'samtools>=1.11'"
+	publishDir "$output_dir", mode: params.publish_mode
+
+	input:
+	val(sample)
+	path(reads)
+
+	output:
+	stdout
+	val "$sample", emit: sample_id
+	path "${sample}/${sample}.no_human_U.fastq.gz", emit: r1_fq
+
+	script:
+
+	"""
+	cpus=\$(expr \"$task.cpus\" - 4)
+	mkdir -p $sample
+	bwa mem -t \$cpus ${params.human_ref} ${reads} | samtools collate --threads 2 -f -O - | samtools fastq -@ 2 -f 4 -s ${sample}/${sample}.no_human_U.fastq.gz -
+	"""
+
 }
 
 
@@ -98,6 +152,9 @@ workflow {
 
 	qc_preprocess(reads_ch)
 	qc_preprocess_singles(aux_reads_ch, qc_preprocess.out.singles_fq)
+
+	decontaminate(qc_preprocess.out.sample_id, qc_preprocess.out.r1_fq, qc_preprocess.out.r2_fq)
+	decontaminate_singles(qc_preprocess_singles.out.sample_id, qc_preprocess_singles.out.u_fq)
 }
 
 
