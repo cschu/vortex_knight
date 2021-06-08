@@ -115,7 +115,7 @@ process decontaminate_singles {
 	output:
 	stdout
 	val "$sample", emit: sample_id
-	path "${sample}/${sample}.no_human_U.fastq.gz", emit: r1_fq
+	path "${sample}/${sample}.no_human_U.fastq.gz", emit: u_fq
 
 	script:
 
@@ -126,6 +126,75 @@ process decontaminate_singles {
 	"""
 
 }
+
+process align {
+	conda "bioconda::bwa bioconda::'samtools>=1.11'"
+	publishDir "$output_dir", mode: params.publish_mode
+
+	input:
+	val(sample)
+	path(reads1)
+	path(reads2)
+
+	output:
+	stdout
+	val "$sample", emit: sample_id
+	path "${sample}/${sample}.main.bam", emit: bam
+
+	script:
+	def r1 = reads1
+	def r2 =  file(reads2) ? reads2 : ""
+
+	"""
+	cpus=\$(expr \"$task.cpus\" - 4)
+	mkdir -p $sample
+	bwa mem -a -t \$cpus ${params.reference} ${r1} ${r2} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}/${sample}.main.bam -
+	"""
+}
+
+process align_singles {
+	conda "bioconda::bwa bioconda::'samtools>=1.11'"
+	publishDir "$output_dir", mode: params.publish_mode
+
+	input:
+	val(sample)
+	path(reads)
+
+	output:
+	stdout
+	val "$sample", emit: sample_id
+	path "${sample}/${sample}.main.singles.bam", emit: bam
+
+	script:
+
+	"""
+	cpus=\$(expr \"$task.cpus\" - 4)
+	mkdir -p $sample
+	bwa mem -a -t \$cpus ${params.reference} ${reads} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}/${sample}.main.singles.bam -
+	"""
+}
+
+process merge_and_sort {
+	conda "bioconda::bwa bioconda::'samtools>=1.11'"
+	publishDir "$output_dir", mode: params.publish_mode
+
+	input:
+	val(sample)
+	path(main_bam)
+	path(singles_bam)
+
+	output:
+	stdout
+	val "$sample", emit: sample_id
+	path "${sample}/${sample}.bam", emit: bam
+
+	script:
+
+	"""
+	samtools merge -@ $task.cpus "${sample}/${sample}.bam" ${main_bam} ${singles_bam}
+	"""
+}
+
 
 
 
@@ -155,6 +224,11 @@ workflow {
 
 	decontaminate(qc_preprocess.out.sample_id, qc_preprocess.out.r1_fq, qc_preprocess.out.r2_fq)
 	decontaminate_singles(qc_preprocess_singles.out.sample_id, qc_preprocess_singles.out.u_fq)
+
+	align(decontaminate.out.sample_id, decontaminate.out.r1_fq, decontaminate.out.r2_fq)
+	align_singles(decontaminate_singles.out.sample_id, decontaminate_singles.out.u_fq)
+
+	merge_and_sort(align.out.sample_id, align.out.bam, align_singles.out.bam)
 }
 
 
