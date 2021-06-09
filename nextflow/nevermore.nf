@@ -191,6 +191,7 @@ process merge_and_sort {
 	script:
 
 	"""
+	mkdir -p $sample
 	samtools merge -@ $task.cpus "${sample}/${sample}.bam" ${main_bam} ${singles_bam}
 	"""
 }
