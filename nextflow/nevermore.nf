@@ -10,6 +10,12 @@ if (!params.single_file_pattern) {
 	params.single_file_pattern = "**singles.fastq.gz"
 }
 
+if (!params.preprocessed_singles) {
+	run_singles = false
+} else {
+	run_singles = true
+}
+
 if (!params.publish_mode) {
 	params.publish_mode = "link"
 }
@@ -37,7 +43,7 @@ process qc_preprocess {
 	val "${sample}", emit: sample_id
 	path "${sample}/${sample}.qc_R1.fastq.gz", emit: r1_fq
     path "${sample}/${sample}.qc_R2.fastq.gz", optional: true, emit: r2_fq
-	path "${sample}/${sample}.qc_S1.fastq.gz", emit: singles_fq
+	path "${sample}/${sample}.qc_S1.fastq.gz", emit: u_fq
 
 	script:
 	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
@@ -189,12 +195,14 @@ process merge_and_sort {
 	path "${sample}/${sample}.bam", emit: bam
 
 	script:
+	def s_bam = file(singles_bam) ? singles_bam : ""
 
 	"""
 	mkdir -p $sample
-	samtools merge -@ $task.cpus "${sample}/${sample}.bam" ${main_bam} ${singles_bam}
+	samtools merge -@ $task.cpus "${sample}/${sample}.bam" ${main_bam} ${s_bam}
 	"""
 }
+
 
 
 
@@ -221,10 +229,16 @@ workflow {
 	aux_reads_ch.view()
 
 	qc_preprocess(reads_ch)
-	qc_preprocess_singles(aux_reads_ch, qc_preprocess.out.singles_fq)
+	if (run_singles) {
+		qc_preprocess_singles(aux_reads_ch, qc_preprocess.out.u_fq)
+	}
 
 	decontaminate(qc_preprocess.out.sample_id, qc_preprocess.out.r1_fq, qc_preprocess.out.r2_fq)
-	decontaminate_singles(qc_preprocess_singles.out.sample_id, qc_preprocess_singles.out.u_fq)
+	if (run_singles) {
+		decontaminate_singles(qc_preprocess_singles.out.sample_id, qc_preprocess_singles.out.u_fq)
+	} else {
+		decontaminate_singles(qc_preprocess.out.sample_id, qc_preprocess.out.u_fq)
+	}
 
 	align(decontaminate.out.sample_id, decontaminate.out.r1_fq, decontaminate.out.r2_fq)
 	align_singles(decontaminate_singles.out.sample_id, decontaminate_singles.out.u_fq)
