@@ -33,7 +33,6 @@ single_suffix_pattern = params.single_file_pattern.replaceAll(/\*\*/, "").substr
 
 process qc_preprocess {
 	conda "bioconda::bbmap"
-    publishDir "$output_dir", mode: params.publish_mode
 
 	input:
 	tuple val(sample), path(reads)
@@ -43,28 +42,25 @@ process qc_preprocess {
 	val "${sample}", emit: sample_id
 	path "${sample}/${sample}.qc_R1.fastq.gz", emit: r1_fq
     path "${sample}/${sample}.qc_R2.fastq.gz", optional: true, emit: r2_fq
-	path "${sample}/${sample}.qc_S1.fastq.gz", emit: u_fq
+	path "${sample}/${sample}.qc_S1.fastq.gz", optional: true, emit: u_fq
 
 	script:
 	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
 	def r1_index = reads[0].name.endsWith("1${suffix_pattern}") ? 0 : 1
 	def r1 = "in=" + reads[r1_index] + " out=${sample}/${sample}.qc_R1.fastq.gz"
-	def r2 = file(reads[1]) ? "in2=" + ( reads[ r1_index == 0 ? 1 : 0 ] + " out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_S1.fastq.gz" ) : ""
+	def r2 = (reads[1] && file(reads[1])) ? "in2=" + ( reads[ r1_index == 0 ? 1 : 0 ] + " out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_S1.fastq.gz" ) : ""
 
 	"""
 	maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
 	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} ${r1} ${r2}
-	touch ${sample}/${sample}.qc_S1.fastq.gz
 	"""
 }
 
 process qc_preprocess_singles {
 	conda "bioconda::bbmap"
-	publishDir "$output_dir", mode: params.publish_mode
 
 	input:
 	tuple val(sample), path(reads)
-	path(singles)
 
 	output:
 	stdout
@@ -76,14 +72,32 @@ process qc_preprocess_singles {
 
 	"""
 	maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
-	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} in=${reads[0]} out=${sample}/${sample}.qc_S.fastq.gz
-	cat ${singles} ${sample}/${sample}.qc_S.fastq.gz > ${sample}/${sample}.qc_U.fastq.gz
+	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} in=${reads[0]} out=${sample}/${sample}.qc_U.fastq.gz
 	"""
+}
+
+process merge_singles {
+
+	input:
+	val(sample)
+	path(reads)
+	path(singles)
+
+	output:
+	stdout
+	val "$sample", emit: sample_id
+    path "${sample}/${sample}.qc_U.fastq.gz", emit: u_fq
+
+	script:
+	"""
+	mkdir -p $sample
+	cat ${reads} ${singles} > ${sample}/${sample}.qc_U.fastq.gz
+	"""
+
 }
 
 process decontaminate {
 	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-	publishDir "$output_dir", mode: params.publish_mode
 
 	input:
 	val(sample)
@@ -112,7 +126,6 @@ process decontaminate {
 
 process decontaminate_singles {
 	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-	publishDir "$output_dir", mode: params.publish_mode
 
 	input:
 	val(sample)
@@ -135,7 +148,6 @@ process decontaminate_singles {
 
 process align {
 	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-	publishDir "$output_dir", mode: params.publish_mode
 
 	input:
 	val(sample)
@@ -145,7 +157,7 @@ process align {
 	output:
 	stdout
 	val "$sample", emit: sample_id
-	path "${sample}/${sample}.main.bam", emit: bam
+	path "${sample}.main.bam", emit: bam
 
 	script:
 	def r1 = reads1
@@ -153,14 +165,12 @@ process align {
 
 	"""
 	cpus=\$(expr \"$task.cpus\" - 4)
-	mkdir -p $sample
-	bwa mem -a -t \$cpus ${params.reference} ${r1} ${r2} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}/${sample}.main.bam -
+	bwa mem -a -t \$cpus ${params.reference} ${r1} ${r2} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}.main.bam -
 	"""
 }
 
 process align_singles {
 	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-	publishDir "$output_dir", mode: params.publish_mode
 
 	input:
 	val(sample)
@@ -169,14 +179,33 @@ process align_singles {
 	output:
 	stdout
 	val "$sample", emit: sample_id
-	path "${sample}/${sample}.main.singles.bam", emit: bam
+	path "${sample}.main.singles.bam", emit: bam
 
 	script:
 
 	"""
 	cpus=\$(expr \"$task.cpus\" - 4)
+	bwa mem -a -t \$cpus ${params.reference} ${reads} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}.main.singles.bam -
+	"""
+}
+
+process rename_bam {
+	publishDir "$output_dir", mode: params.publish_mode
+
+	input:
+	val(sample)
+	path(bam)
+
+	output:
+	stdout
+	val "$sample", emit: sample_id
+	path "${sample}/${sample}.bam", emit: bam
+
+	script:
+
+	"""
 	mkdir -p $sample
-	bwa mem -a -t \$cpus ${params.reference} ${reads} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}/${sample}.main.singles.bam -
+	cp $bam ${sample}/${sample}.bam
 	"""
 }
 
@@ -197,10 +226,17 @@ process merge_and_sort {
 	script:
 	def s_bam = file(singles_bam) ? singles_bam : ""
 
-	"""
-	mkdir -p $sample
-	samtools merge -@ $task.cpus "${sample}/${sample}.bam" ${main_bam} ${s_bam}
-	"""
+	if (file(singles_bam)) {
+		"""
+		mkdir -p $sample
+		samtools merge -@ $task.cpus "${sample}/${sample}.bam" ${main_bam} ${s_bam}
+		"""
+	} else {
+		"""
+		mkdir -p $sample
+		cp ${main_bam} "${sample}/${sample}.bam"
+		"""
+	}
 }
 
 
@@ -228,45 +264,25 @@ workflow {
 		.groupTuple()
 	aux_reads_ch.view()
 
-	qc_preprocess(reads_ch)
-	if (run_singles) {
-		qc_preprocess_singles(aux_reads_ch, qc_preprocess.out.u_fq)
-	}
-
-	decontaminate(qc_preprocess.out.sample_id, qc_preprocess.out.r1_fq, qc_preprocess.out.r2_fq)
-	if (run_singles) {
+	if (params.r1_only) {
+		qc_preprocess_singles(reads_ch)
 		decontaminate_singles(qc_preprocess_singles.out.sample_id, qc_preprocess_singles.out.u_fq)
+		align_singles(decontaminate_singles.out.sample_id, decontaminate_singles.out.u_fq)
+		rename_bam(align_singles.out.sample_id, align_singles.out.bam)
 	} else {
-		decontaminate_singles(qc_preprocess.out.sample_id, qc_preprocess.out.u_fq)
+		qc_preprocess(reads_ch)
+		decontaminate(qc_preprocess.out.sample_id, qc_preprocess.out.r1_fq, qc_preprocess.out.r2_fq)
+		align(decontaminate.out.sample_id, decontaminate.out.r1_fq, decontaminate.out.r2_fq)
+		if (run_singles) {
+			qc_preprocess_singles(aux_reads_ch)
+			merge_singles(qc_preprocess.out.sample_id, qc_preprocess.out.u_fq, qc_preprocess_singles.out.u_fq)
+			decontaminate_singles(merge_singles.out.sample_id, merge_singles.out.u_fq)
+			align_singles(decontaminate_singles.out.sample_id, decontaminate_singles.out.u_fq)
+			merge_and_sort(align.out.sample_id, align.out.bam, align_singles.out.bam)
+		} else {
+			decontaminate_singles(qc_preprocess.out.sample_id, qc_preprocess.out.u_fq)
+			align_singles(decontaminate_singles.out.sample_id, decontaminate_singles.out.u_fq)
+			merge_and_sort(align.out.sample_id, align.out.bam, align_singles.out.bam)
+		}
 	}
-
-	align(decontaminate.out.sample_id, decontaminate.out.r1_fq, decontaminate.out.r2_fq)
-	align_singles(decontaminate_singles.out.sample_id, decontaminate_singles.out.u_fq)
-
-	merge_and_sort(align.out.sample_id, align.out.bam, align_singles.out.bam)
 }
-
-
-/*in=<file>           Main input. in=stdin.fq will pipe from stdin.
-in2=<file>          Input for 2nd read of pairs in a different file.
-ref=<file,file>     Comma-delimited list of reference files.
-                    In addition to filenames, you may also use the keywords:
-                    adapters, artifacts, phix, lambda, pjet, mtst, kapa
-literal=<seq,seq>   Comma-delimited list of literal reference sequences.
-touppercase=f       (tuc) Change all bases upper-case.
-interleaved=auto    (int) t/f overrides interleaved autodetection.
-qin=auto            Input quality offset: 33 (Sanger), 64, or auto.
-reads=-1            If positive, quit after processing X reads or pairs.
-copyundefined=f     (cu) Process non-AGCT IUPAC reference bases by making all
-                    possible unambiguous copies.  Intended for short motifs
-                    or adapter barcodes, as time/memory use is exponential.
-samplerate=1        Set lower to only process a fraction of input reads.
-samref=<file>       Optional reference fasta for processing sam files.
-
-Output parameters:
-out=<file>          (outnonmatch) Write reads here that do not contain
-                    kmers matching the database.  'out=stdout.fq' will pipe
-                    to standard out.
-out2=<file>         (outnonmatch2) Use this to write 2nd read of pairs to a
-                    different file.
-*/
