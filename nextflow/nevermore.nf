@@ -10,6 +10,10 @@ if (!params.single_file_pattern) {
 	params.single_file_pattern = "**singles.fastq.gz"
 }
 
+if (!params.file_suffix) {
+	params.file_suffix = ".fastq.gz"
+}
+
 if (!params.preprocessed_singles) {
 	run_singles = false
 } else {
@@ -26,10 +30,8 @@ if (!params.output_dir) {
 
 output_dir = "${params.output_dir}"
 
-suffix_pattern = params.file_pattern.replaceAll(/\*\*/, "").substring(4)
-single_suffix_pattern = params.single_file_pattern.replaceAll(/\*\*/, "").substring(7)
+suffix_pattern = params.file_suffix
 
-//qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
 
 process qc_preprocess {
 	conda "bioconda::bbmap"
@@ -239,7 +241,30 @@ process merge_and_sort {
 	}
 }
 
+process gffquant {
+	conda params.gffquant_env
+	publishDir "$output_dir", mode: params.publish_mode
 
+	input:
+	val(sample)
+	path(bam)
+
+	output:
+	stdout
+	val "$sample", emit: sample_id
+	path "${sample}/${sample}.seqname.uniq.txt", emit: uniq_seq
+	path "${sample}/${sample}.seqname.dist1.txt", emit: dist1_seq
+	path "${sample}/${sample}.feature_counts.txt", emit: feat_counts
+	path "${sample}/${sample}.gene_counts.txt", emit: gene_counts
+	path "${sample}/${sample}.covsum.txt", emit: covsum
+
+	script:
+
+	"""
+	mkdir -p ${sample}
+	gffquant ${params.gffquant_db} ${bam} -o ${sample}/${sample} -m ${params.gffquant_mode} --ambig_mode ${params.gffquant_amode}
+	"""
+}
 
 
 
@@ -257,7 +282,7 @@ workflow {
 	aux_reads_ch = Channel
 		.fromPath(params.input_dir + "/" + params.single_file_pattern)
 		.map { file ->
-			def sample = file.name.replaceAll(single_suffix_pattern, "")
+			def sample = file.name.replaceAll(suffix_pattern, "")
 			sample = sample.replaceAll(/.singles/, "")
 			return tuple(sample, file)
 		}
@@ -269,6 +294,7 @@ workflow {
 		decontaminate_singles(qc_preprocess_singles.out.sample_id, qc_preprocess_singles.out.u_fq)
 		align_singles(decontaminate_singles.out.sample_id, decontaminate_singles.out.u_fq)
 		rename_bam(align_singles.out.sample_id, align_singles.out.bam)
+		gffquant(rename_bam.out.sample_id, rename_bam.out.bam)
 	} else {
 		qc_preprocess(reads_ch)
 		decontaminate(qc_preprocess.out.sample_id, qc_preprocess.out.r1_fq, qc_preprocess.out.r2_fq)
@@ -284,5 +310,7 @@ workflow {
 			align_singles(decontaminate_singles.out.sample_id, decontaminate_singles.out.u_fq)
 			merge_and_sort(align.out.sample_id, align.out.bam, align_singles.out.bam)
 		}
+		gffquant(merge_and_sort.out.sample_id, merge_and_sort.out.bam)
 	}
+
 }
