@@ -2,26 +2,9 @@
 
 nextflow.enable.dsl=2
 
-if (!params.file_pattern) {
-	params.file_pattern = "**[12].fastq.gz"
-}
-
-if (!params.single_file_pattern) {
-	params.single_file_pattern = "**singles.fastq.gz"
-}
-
-if (!params.file_suffix) {
-	params.file_suffix = ".fastq.gz"
-}
-
-if (!params.preprocessed_singles) {
-	run_singles = false
-} else {
-	run_singles = true
-}
 
 if (!params.publish_mode) {
-	params.publish_mode = "link"
+	params.publish_mode = "symlink"
 }
 
 if (!params.output_dir) {
@@ -30,243 +13,12 @@ if (!params.output_dir) {
 
 output_dir = "${params.output_dir}"
 
-suffix_pattern = params.file_suffix
-
-
-/*
-process qc_preprocess {
-	conda "bioconda::bbmap"
-
-	input:
-	tuple val(sample), path(reads)
-
-	output:
-	stdout
-	val "${sample}", emit: sample_id
-	path "${sample}/${sample}.qc_R1.fastq.gz", emit: r1_fq
-    path "${sample}/${sample}.qc_R2.fastq.gz", optional: true, emit: r2_fq
-	path "${sample}/${sample}.qc_S1.fastq.gz", optional: true, emit: u_fq
-
-	script:
-	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
-	def r1_index = reads[0].name.endsWith("1${suffix_pattern}") ? 0 : 1
-	def r1 = "in=" + reads[r1_index] + " out=${sample}/${sample}.qc_R1.fastq.gz"
-	def r2 = (reads[1] && file(reads[1])) ? "in2=" + ( reads[ r1_index == 0 ? 1 : 0 ] + " out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_S1.fastq.gz" ) : ""
-
-	"""
-	maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
-	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} ${r1} ${r2}
-	"""
+if (params.motus_database) {
+	motus_database = "-db ${params.motus_database}"
+} else {
+	motus_database = ""
 }
 
-process qc_preprocess_singles {
-	conda "bioconda::bbmap"
-
-	input:
-	tuple val(sample), path(reads)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.qc_U.fastq.gz", emit: u_fq
-
-	script:
-	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
-
-	"""
-	maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
-	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} in=${reads[0]} out=${sample}/${sample}.qc_U.fastq.gz
-	"""
-}
-
-process merge_singles {
-
-	input:
-	val(sample)
-	path(reads)
-	path(singles)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-    path "${sample}/${sample}.qc_U.fastq.gz", emit: u_fq
-
-	script:
-	"""
-	mkdir -p $sample
-	cat ${reads} ${singles} > ${sample}/${sample}.qc_U.fastq.gz
-	"""
-
-}
-
-process decontaminate {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-
-	input:
-	val(sample)
-	path(reads1)
-	path(reads2)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.no_human_R1.fastq.gz", emit: r1_fq
-	path "${sample}/${sample}.no_human_R2.fastq.gz", optional: true, emit: r2_fq
-
-	script:
-	def r1 = reads1
-	def r2 = file(reads2) ? reads2 : ""
-
-	def r1_out = "-1 ${sample}/${sample}.no_human_R1.fastq.gz"
-	def r2_out = file(reads2) ? "-2 ${sample}/${sample}.no_human_R2.fastq.gz" : ""
-
-	"""
-	cpus=\$(expr \"$task.cpus\" - 4)
-	mkdir -p $sample
-	bwa mem -t \$cpus ${params.human_ref} ${r1} ${r2} | samtools collate --threads 2 -f -O - | samtools fastq -@ 2 -f 4 ${r1_out} ${r2_out} -s singletons.fastq.gz -
-	"""
-}
-
-process decontaminate_singles {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-
-	input:
-	val(sample)
-	path(reads)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.no_human_U.fastq.gz", emit: u_fq
-
-	script:
-
-	"""
-	cpus=\$(expr \"$task.cpus\" - 4)
-	mkdir -p $sample
-	bwa mem -t \$cpus ${params.human_ref} ${reads} | samtools collate --threads 2 -f -O - | samtools fastq -@ 2 -f 4 -s ${sample}/${sample}.no_human_U.fastq.gz -
-	"""
-
-}
-
-process align {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-
-	input:
-	val(sample)
-	path(reads1)
-	path(reads2)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}.main.bam", emit: bam
-
-	script:
-	def r1 = reads1
-	def r2 =  file(reads2) ? reads2 : ""
-
-	"""
-	cpus=\$(expr \"$task.cpus\" - 4)
-	bwa mem -a -t \$cpus ${params.reference} ${r1} ${r2} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}.main.bam -
-	"""
-}
-
-process align_singles {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-
-	input:
-	val(sample)
-	path(reads)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}.main.singles.bam", emit: bam
-
-	script:
-
-	"""
-	cpus=\$(expr \"$task.cpus\" - 4)
-	bwa mem -a -t \$cpus ${params.reference} ${reads} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}.main.singles.bam -
-	"""
-}
-
-process rename_bam {
-	publishDir "$output_dir", mode: params.publish_mode
-
-	input:
-	val(sample)
-	path(bam)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.bam", emit: bam
-
-	script:
-
-	"""
-	mkdir -p $sample
-	cp $bam ${sample}/${sample}.bam
-	"""
-}
-
-process merge_and_sort {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-	publishDir "$output_dir", mode: params.publish_mode
-
-	input:
-	val(sample)
-	path(main_bam)
-	path(singles_bam)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.bam", emit: bam
-
-	script:
-	def s_bam = file(singles_bam) ? singles_bam : ""
-
-	if (file(singles_bam)) {
-		"""
-		mkdir -p $sample
-		samtools merge -@ $task.cpus "${sample}/${sample}.bam" ${main_bam} ${s_bam}
-		"""
-	} else {
-		"""
-		mkdir -p $sample
-		cp ${main_bam} "${sample}/${sample}.bam"
-		"""
-	}
-}
-
-process gffquant {
-	conda params.gffquant_env
-	publishDir "$output_dir", mode: params.publish_mode
-
-	input:
-	val(sample)
-	path(bam)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.seqname.uniq.txt", emit: uniq_seq
-	path "${sample}/${sample}.seqname.dist1.txt", emit: dist1_seq
-	path "${sample}/${sample}.feature_counts.txt", emit: feat_counts
-	path "${sample}/${sample}.gene_counts.txt", emit: gene_counts
-	path "${sample}/${sample}.covsum.txt", emit: covsum
-
-	script:
-
-	"""
-	mkdir -p ${sample}
-	gffquant ${params.gffquant_db} ${bam} -o ${sample}/${sample} -m ${params.gffquant_mode} --ambig_mode ${params.gffquant_amode}
-	"""
-}
-*/
 
 process bam2fq {
 	input:
@@ -297,10 +49,6 @@ process fq2bam {
 	path("out/${sample}.bam"), emit: bam
 
 	script:
-	//def r1 = "in=" + reads[r1_index] + " out=${sample}/${sample}.qc_R1.fastq.gz"
-    //def r2 = (reads[1] && file(reads[1])) ? "in2=" + ( reads[ r1_index == 0 ? 1 : 0 ] + " out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_S1.fastq.gz" ) : ""
-
-	//def 
 
 	if (fq.size() == 2) {
 		"""
@@ -338,7 +86,6 @@ process make_dummy_fastqs {
 			ln -sf ../${fq[0]} out/${sample}_R1.fastq.gz
 			"""
 		}
-
 }
 
 
@@ -374,7 +121,6 @@ process count_reads {
 	mkdir -p ${sample}
 	samtools flagstat $bam | head -n 1 | awk '{print \$1 + \$3}' > "${sample}/${sample}.libsize.txt"
 	"""
-
 }
 
 
@@ -392,10 +138,10 @@ process kraken2_single {
 	script:
 	"""
 	mkdir -p ${sample}
-	/g/scb/zeller/fspringe/Software/kraken2/kraken2 --db /g/scb/zeller/jawirbel/total_RNAseq/databases/kraken2_standard --threads $task.cpus --gzip-compressed --report ${sample}/${sample}.kraken2_report.txt $r1
+	kraken2 --db ${params.kraken_database} --threads $task.cpus --gzip-compressed --report ${sample}/${sample}.kraken2_report.txt $r1
 	""" 
-	
 }
+
 
 process kraken2_paired {
 	publishDir "$output_dir", mode: params.publish_mode
@@ -412,10 +158,11 @@ process kraken2_paired {
 	script:
 	"""
 	mkdir -p ${sample}
-	/g/scb/zeller/fspringe/Software/kraken2/kraken2 --db /g/scb/zeller/jawirbel/total_RNAseq/databases/kraken2_standard --threads $task.cpus --gzip-compressed --report ${sample}/${sample}.kraken2_report.txt --paired $r1 $r2
+	kraken2 --db ${params.kraken_database} --threads $task.cpus --gzip-compressed --report ${sample}/${sample}.kraken2_report.txt --paired $r1 $r2
 	"""
 
 }
+
 
 process mtag_extraction_single {
 	input:
@@ -482,8 +229,8 @@ process mapseq_single {
 	script:
 	"""
 	mkdir -p ${sample}
-	/g/scb/zeller/fspringe/Software/mapseq-1.2.6-linux/mapseq $bac_lsu_r1 > ${sample}/${sample}_R1_bac_lsu.mseq
-	/g/scb/zeller/fspringe/Software/mapseq-1.2.6-linux/mapseq $bac_ssu_r1 > ${sample}/${sample}_R1_bac_ssu.mseq
+	${params.mapseq_bin} $bac_lsu_r1 > ${sample}/${sample}_R1_bac_lsu.mseq
+	${params.mapseq_bin} $bac_ssu_r1 > ${sample}/${sample}_R1_bac_ssu.mseq
 	"""	
 }
 
@@ -506,10 +253,10 @@ process mapseq_paired {
 	script:
 	"""
 	mkdir -p ${sample}
-	/g/scb/zeller/fspringe/Software/mapseq-1.2.6-linux/mapseq $bac_lsu_r1 > ${sample}/${sample}_R1_bac_lsu.mseq
-	/g/scb/zeller/fspringe/Software/mapseq-1.2.6-linux/mapseq $bac_ssu_r1 > ${sample}/${sample}_R1_bac_ssu.mseq
-	/g/scb/zeller/fspringe/Software/mapseq-1.2.6-linux/mapseq $bac_lsu_r2 > ${sample}/${sample}_R2_bac_lsu.mseq
-	/g/scb/zeller/fspringe/Software/mapseq-1.2.6-linux/mapseq $bac_ssu_r2 > ${sample}/${sample}_R2_bac_ssu.mseq
+	${params.mapseq_bin} $bac_lsu_r1 > ${sample}/${sample}_R1_bac_lsu.mseq
+	${params.mapseq_bin} $bac_ssu_r1 > ${sample}/${sample}_R1_bac_ssu.mseq
+	${params.mapseq_bin} $bac_lsu_r2 > ${sample}/${sample}_R2_bac_lsu.mseq
+	${params.mapseq_bin} $bac_ssu_r2 > ${sample}/${sample}_R2_bac_ssu.mseq
 	"""	
 }
 
@@ -527,7 +274,7 @@ process collate_mapseq_single {
 	script:
 	"""
 	mkdir -p otu_tables
-	/g/scb/zeller/fspringe/Software/mapseq-1.2.6-linux/mapseq -otutable -tl 5 $bac_ssu_r1 > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
+	${params.mapseq_bin} -otutable -tl 5 $bac_ssu_r1 > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
 	"""
 }
 
@@ -548,11 +295,10 @@ process collate_mapseq_paired {
 	script:
 	"""
 	mkdir -p otu_tables
-	/g/scb/zeller/fspringe/Software/mapseq-1.2.6-linux/mapseq -otutable -tl 5 $bac_ssu_r1 > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
-	/g/scb/zeller/fspringe/Software/mapseq-1.2.6-linux/mapseq -otutable -tl 5 $bac_ssu_r2 > otu_tables/mapseq_counts_genus_rev_bac_ssu.tsv
+	${params.mapseq_bin} -otutable -tl 5 $bac_ssu_r1 > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
+	${params.mapseq_bin} -otutable -tl 5 $bac_ssu_r2 > otu_tables/mapseq_counts_genus_rev_bac_ssu.tsv
 	"""
 }
-
 
 
 process motus_single {
@@ -569,7 +315,7 @@ process motus_single {
 	script:
 	"""
 	mkdir -p ${sample}
-    motus profile -s $r1 -l 50 -t $task.cpus -g 1 -k genus -c -v 7 > ${sample}/${sample}.motus.txt
+    motus profile ${motus_database} -s $r1 -l 50 -t $task.cpus -g 1 -k genus -c -v 7 > ${sample}/${sample}.motus.txt
 	"""
 }
 
@@ -589,7 +335,7 @@ process motus_paired {
 	script:
 	"""
 	mkdir -p ${sample}
-    motus profile -f $r1 -r $r2 -l 50 -t $task.cpus -g 1 -k genus -c -v 7 > ${sample}/${sample}.motus.txt
+    motus profile ${motus_database} -f $r1 -r $r2 -l 50 -t $task.cpus -g 1 -k genus -c -v 7 > ${sample}/${sample}.motus.txt
 	"""
 }
 
@@ -607,11 +353,6 @@ process pathseq {
 	path("${sample}/${sample}.pathseq.bam.sbi"), emit: sbi
 	path("${sample}/${sample}.pathseq.score_metrics"), emit: score_metrics
 	path("${sample}/${sample}.pathseq.scores"), emit: txt
-
-
-	//maxmem="-Xmx"$(echo "256 GB"| sed 's/ GB/g/g')
-	//echo $maxmem
-	//gatk --java-options "-Xmx$maxmem" PathSeqPipelineSpark
 
 	script:
 	"""
@@ -642,7 +383,7 @@ workflow {
 				return tuple(sample, file)
 		}
 		.groupTuple()
-	fastq_ch.view()
+	//fastq_ch.view()
 
 	bam_ch = Channel
 		.fromPath(params.input_dir + "/" + "**.bam")
@@ -651,7 +392,7 @@ workflow {
 			return tuple(sample, file)
 		}
 		.groupTuple(sort: true)
-	bam_ch.view()
+	//bam_ch.view()
 
 	make_dummy_fastqs(fastq_ch)
 	make_dummy_bam(bam_ch)
@@ -679,8 +420,8 @@ workflow {
 		count_reads(fq2bam.out.sample, fq2bam.out.bam)
 		pathseq(fq2bam.out.sample, fq2bam.out.bam)
 		if (make_dummy_fastqs.out.r2 != null) {
-			//kraken2_paired(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1, make_dummy_fastqs.out.r2)
-			//motus_paired(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1, make_dummy_fastqs.out.r2)
+			kraken2_paired(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1, make_dummy_fastqs.out.r2)
+			motus_paired(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1, make_dummy_fastqs.out.r2)
             mtag_extraction_paired(make_dummy_fastqs.out.sample, make_dummy_fastqs.out.r1, make_dummy_fastqs.out.r2)
 			mapseq_paired(mtag_extraction_paired.out.sample, mtag_extraction_paired.out.bac_lsu_r1, mtag_extraction_paired.out.bac_ssu_r1, mtag_extraction_paired.out.bac_lsu_r2, mtag_extraction_paired.out.bac_ssu_r2)
 			collate_mapseq_paired(mapseq_paired.out.bac_lsu_r1.collect(), mapseq_paired.out.bac_ssu_r1.collect(), mapseq_paired.out.bac_lsu_r2.collect(), mapseq_paired.out.bac_ssu_r2.collect())
