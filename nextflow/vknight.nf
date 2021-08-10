@@ -382,7 +382,7 @@ workflow {
 				sample = sample.replaceAll(/_R?[12]$/, "")
 				return tuple(sample, file)
 		}
-		.groupTuple()
+		.groupTuple(sort: true)
 	//fastq_ch.view()
 
 	bam_ch = Channel
