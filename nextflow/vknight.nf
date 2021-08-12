@@ -274,7 +274,7 @@ process collate_mapseq_single {
 	script:
 	"""
 	mkdir -p otu_tables
-	${params.mapseq_bin} -otutable -tl 5 $bac_ssu_r1 > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
+	${params.mapseq_bin} -otutable -tl 5 \$(ls *_R1_bac_lsu.mseq) | sed 's/_R1_bac_ssu.mseq//g' > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
 	"""
 }
 
@@ -295,8 +295,8 @@ process collate_mapseq_paired {
 	script:
 	"""
 	mkdir -p otu_tables
-	${params.mapseq_bin} -otutable -tl 5 $bac_ssu_r1 > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
-	${params.mapseq_bin} -otutable -tl 5 $bac_ssu_r2 > otu_tables/mapseq_counts_genus_rev_bac_ssu.tsv
+	${params.mapseq_bin} -otutable -tl 5 \$(ls *_R1_bac_ssu.mseq) | sed 's/_R1_bac_ssu.mseq//g' > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
+	${params.mapseq_bin} -otutable -tl 5 \$(ls *_R2_bac_ssu.mseq) | sed 's/_R2_bac_ssu.mseq//g' > otu_tables/mapseq_counts_genus_rev_bac_ssu.tsv
 	"""
 }
 
