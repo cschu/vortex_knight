@@ -29,13 +29,24 @@ process bam2fq {
 	val(sample), emit: sample
 	path("out/${sample}_R1.fastq.gz"), emit: r1
 	path("out/${sample}_R2.fastq.gz"), optional: true, emit: r2
-	path("out/${sample}_singles.fastq.gz"), optional: true, emit: singles
 
 	script:
 	"""
 	mkdir -p out
-	samtools fastq -@ $task.cpus -1 out/${sample}_R1.fastq.gz -2 out/${sample}_R2.fastq.gz -s out/${sample}_singles.fastq.gz $bam
-	"""	
+	samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 3840 -0 ${sample}_other.fastq.gz -1 ${sample}_R1.fastq.gz -2 ${sample}_R2.fastq.gz
+
+	if [[ -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
+	then
+		mv ${sample}_other.fastq.gz out/${sample}_R1.fastq.gz;
+	else
+		mv ${sample}_R1.fastq.gz out/;
+		if [[ ! -z "\$(gzip -dc ${sample}_R2.fastq.gz | head -n 1)" ]];
+		then
+			mv ${sample}_R2.fastq.gz out/;
+		fi;
+	fi;
+	rm -rf *.fastq.gz
+	"""
 }
 
 
@@ -139,7 +150,7 @@ process kraken2_single {
 	"""
 	mkdir -p ${sample}
 	kraken2 --db ${params.kraken_database} --threads $task.cpus --gzip-compressed --report ${sample}/${sample}.kraken2_report.txt $r1
-	""" 
+	"""
 }
 
 
@@ -210,7 +221,7 @@ process mtag_extraction_paired {
 	//path("${r2}_read.map"), emit: readmap_r2
 	script:
 	"""
-	mtags extract -i1 $r1 -i2 $r2 -o . -t $task.cpus      
+	mtags extract -i1 $r1 -i2 $r2 -o . -t $task.cpus
 	"""
 }
 
@@ -231,7 +242,7 @@ process mapseq_single {
 	mkdir -p ${sample}
 	${params.mapseq_bin} $bac_lsu_r1 > ${sample}/${sample}_R1_bac_lsu.mseq
 	${params.mapseq_bin} $bac_ssu_r1 > ${sample}/${sample}_R1_bac_ssu.mseq
-	"""	
+	"""
 }
 
 
@@ -257,7 +268,7 @@ process mapseq_paired {
 	${params.mapseq_bin} $bac_ssu_r1 > ${sample}/${sample}_R1_bac_ssu.mseq
 	${params.mapseq_bin} $bac_lsu_r2 > ${sample}/${sample}_R2_bac_lsu.mseq
 	${params.mapseq_bin} $bac_ssu_r2 > ${sample}/${sample}_R2_bac_ssu.mseq
-	"""	
+	"""
 }
 
 
@@ -396,7 +407,7 @@ workflow {
 
 	make_dummy_fastqs(fastq_ch)
 	make_dummy_bam(bam_ch)
-	
+
 	bam2fq(bam_ch)
 	fq2bam(fastq_ch)
 
