@@ -22,7 +22,7 @@ if (params.motus_database) {
 
 process bam2fq {
 	input:
-    tuple val(sample), path(bam)
+	tuple val(sample), path(bam)
 
 	output:
 	stdout
@@ -58,15 +58,15 @@ process prepare_fastqs {
 	script:
 	if (fq.size() == 2) {
 		"""
-        mkdir -p out
-        ln -sf ../${fq[0]} out/${sample}_R1.fastq.gz
-        ln -sf ../${fq[1]} out/${sample}_R2.fastq.gz
-        """
-    } else {
-        """
-        mkdir -p out
-        ln -sf ../${fq[0]} out/${sample}_R1.fastq.gz
-        """
+		mkdir -p out
+		ln -sf ../${fq[0]} out/${sample}_R1.fastq.gz
+		ln -sf ../${fq[1]} out/${sample}_R2.fastq.gz
+		"""
+	} else {
+		"""
+		mkdir -p out
+		ln -sf ../${fq[0]} out/${sample}_R1.fastq.gz
+		"""
 	}
 }
 
@@ -102,12 +102,17 @@ process count_reads {
 	tuple val(sample), path(bam)
 
 	output:
-	tuple val(sample), path("${sample}/${sample}.libsize.txt"), emit: counts
+	//tuple val(sample),
+	path("${sample}/${sample}.libsize.txt"), emit: counts
+	path("${sample}/${sample}.is_paired.txt"), emit: is_paired
+	path("${sample}/${sample}.flagstats.txt"), emit: flagstats
 
 	script:
 	"""
 	mkdir -p ${sample}
-	samtools flagstat $bam | head -n 1 | awk '{print \$1 + \$3}' > "${sample}/${sample}.libsize.txt"
+	samtools flagstat $bam > "${sample}/${sample}.flagstats.txt"
+	head -n 1 "${sample}/${sample}.flagstats.txt" | awk '{print \$1 + \$3}' > "${sample}/${sample}.libsize.txt"
+	grep -m 1 "paired in sequencing" "${sample}/${sample}.flagstats.txt" | awk '{npaired = \$1 + \$3; if (np==0) {print "unpaired"} else {print "paired"};}' > "${sample}/${sample}.is_paired.txt"
 	"""
 }
 
@@ -245,14 +250,32 @@ process pathseq {
 
 
 workflow {
+
+	/*
+		Collect all fastq files from the input directory tree.
+		It is recommended to use one subdirectory per sample.
+	*/
+
 	fastq_ch = Channel
-    	.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
-        .map { file ->
+		.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
+		.map { file ->
 				def sample = file.name.replaceAll(/.(fastq|fq)(.gz)?$/, "")
 				sample = sample.replaceAll(/_R?[12]$/, "")
 				return tuple(sample, file)
 		}
 		.groupTuple(sort: true)
+
+	/*
+		Normalise the input fastq naming scheme
+		r1: <sample>_R1.fastq.gz
+		r2: <sample>_R2.fastq.gz
+	*/
+
+	prepare_fastqs(fastq_ch)
+
+	/*
+		Collect all bam files from the input directory tree.
+	*/
 
 	bam_ch = Channel
 		.fromPath(params.input_dir + "/" + "**.bam")
@@ -262,18 +285,36 @@ workflow {
 		}
 		.groupTuple(sort: true)
 
+	/*
+		Convert input bam to fastq.
+		This gets rid of:
+		- alignment information (e.g. when reads were prealigned against host)
+		- optical duplicates, secondary/suppl alignments, reads that don't pass qual filters
+	*/
+
 	bam2fq(bam_ch)
-	fq2bam(fastq_ch)
 
-
-	prepare_fastqs(fastq_ch)
+	/*
+		Combine the normalised and bam-extracted fastqs
+	*/
 
 	combined_fastq_ch = prepare_fastqs.out.reads.concat(bam2fq.out.reads)
 
-	combined_bam_ch = bam_ch.concat(fq2bam.out.reads)
+	/*
+		Convert all fastqs to bam files
+	*/
+
+	fq2bam(combined_fastq_ch)
+
+	combined_bam_ch = fq2bam.out.reads
+
+	/* perform bam-based analyses */
 
 	count_reads(combined_bam_ch)
+
 	pathseq(combined_bam_ch)
+
+	/* perform fastq-based analyses */
 
 	kraken2(combined_fastq_ch)
 
@@ -284,5 +325,4 @@ workflow {
 	mapseq(mtag_extraction.out.mtag_out)
 
 	collate_mapseq_tables(mapseq.out.bac_ssu.collect())
-
 }
