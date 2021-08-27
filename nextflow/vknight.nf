@@ -19,6 +19,10 @@ if (params.motus_database) {
 	motus_database = ""
 }
 
+if (!params.pathseq_min_clipped_read_length) {
+	params.pathseq_min_clipped_read_length = 31
+}
+
 
 process bam2fq {
 	input:
@@ -238,7 +242,7 @@ process pathseq {
 		--input $bam \\
 		--filter-bwa-image ${params.pathseq_database}/reference.fasta.img \\
 		--kmer-file ${params.pathseq_database}/host.hss \\
-		--min-clipped-read-length 31 \\
+		--min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
 		--microbe-fasta ${params.pathseq_database}/microbe.fasta \\
 		--microbe-bwa-image ${params.pathseq_database}/microbe.fasta.img \\
 		--taxonomy-file ${params.pathseq_database}/microbe.db \\
