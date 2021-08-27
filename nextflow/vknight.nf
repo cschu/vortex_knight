@@ -23,6 +23,17 @@ if (!params.pathseq_min_clipped_read_length) {
 	params.pathseq_min_clipped_read_length = 31
 }
 
+def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2);
+def run_mtags = (!params.skip_mtags || params.run_mtags);
+def run_motus2 = (!params.skip_motus2 || params.run_motus2);
+def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
+def run_count_reads = (!params.skip_counts || params.run_counts);
+
+def convert_fastq2bam = (run_pathseq || run_count_reads);
+
+
+
+
 
 process bam2fq {
 	input:
@@ -187,7 +198,7 @@ process mtags_merge {
 }
 
 
-process motus {
+process motus2 {
 	publishDir "$output_dir", mode: params.publish_mode
 
 	input:
@@ -288,33 +299,39 @@ workflow {
 
 	combined_fastq_ch = prepare_fastqs.out.reads.concat(bam2fq.out.reads)
 
-	/*
-		Convert all fastqs to bam files
-	*/
+	if (convert_fastq2bam) {
 
-	fq2bam(combined_fastq_ch)
+		/*
+			Convert all fastqs to bam files
+		*/
 
-	combined_bam_ch = fq2bam.out.reads
+		fq2bam(combined_fastq_ch)
 
-	/* perform bam-based analyses */
+		combined_bam_ch = fq2bam.out.reads
 
-	count_reads(combined_bam_ch)
+		/* perform bam-based analyses */
 
-	if (!params.skip_pathseq) {
-		pathseq(combined_bam_ch)
+		if (run_count_reads) {
+			count_reads(combined_bam_ch)
+		}
+
+		if (run_pathseq) {
+			pathseq(combined_bam_ch)
+		}
+
 	}
 
 	/* perform fastq-based analyses */
 
-	if (!params.skip_kraken) {
+	if (run_kraken2) {
 		kraken2(combined_fastq_ch)
 	}
 
-	if (!params.skip_motus) {
-		motus(combined_fastq_ch)
+	if (run_motus2) {
+		motus2(combined_fastq_ch)
 	}
 
-	if (!params.mtags) {
+	if (run_mtags) {
 		mtags_extract(combined_fastq_ch)
 
 		mtags_annotate(mtags_extract.out.mtags_out)
