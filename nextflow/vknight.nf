@@ -112,7 +112,7 @@ process count_reads {
 	mkdir -p ${sample}
 	samtools flagstat $bam > "${sample}/${sample}.flagstats.txt"
 	head -n 1 "${sample}/${sample}.flagstats.txt" | awk '{print \$1 + \$3}' > "${sample}/${sample}.libsize.txt"
-	grep -m 1 "paired in sequencing" "${sample}/${sample}.flagstats.txt" | awk '{npaired = \$1 + \$3; if (np==0) {print "unpaired"} else {print "paired"};}' > "${sample}/${sample}.is_paired.txt"
+	grep -m 1 "paired in sequencing" "${sample}/${sample}.flagstats.txt" | awk '{npaired = \$1 + \$3; if (npaired==0) {print "unpaired"} else {print "paired"};}' > "${sample}/${sample}.is_paired.txt"
 	"""
 }
 
