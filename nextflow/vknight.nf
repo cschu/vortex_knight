@@ -139,67 +139,51 @@ process kraken2 {
 }
 
 
-process mtag_extraction {
+process mtags_extract {
 	input:
 	tuple val(sample), path(reads)
 
 	output:
-	tuple val(sample), path("*_bac_ssu.fasta"), emit: mtag_out
+	tuple val(sample), path("*_bac_ssu.fasta"), emit: mtags_out
 
 	script:
-	def mtag_input = (reads.size() == 2) ? "-i1 ${sample}_R1.fastq.gz -i2 ${sample}_R2.fastq.gz" : "-is ${sample}_R1.fastq.gz";
+	def mtags_input = (reads.size() == 2) ? "-f ${sample}_R1.fastq.gz -r ${sample}_R2.fastq.gz" : "-s ${sample}_R1.fastq.gz";
 
 	"""
-	mtags extract -t $task.cpus -o . ${mtag_input}
+	mtags extract -t $task.cpus -o . ${mtags_input}
 	"""
 }
 
 
-process mapseq {
+process mtags_annotate {
 	input:
 	tuple val(sample), path(seqs)
 
 	output:
-	path("${sample}/${sample}_R*bac_ssu.mseq"), emit: bac_ssu
+	path("${sample}.bins"), emit: mtags_bins
 
 	script:
-	if (seqs.size() == 2) {
-		"""
-		mkdir -p ${sample}
-		${params.mapseq_bin} ${sample}_R1.fastq.gz_bac_ssu.fasta > ${sample}/${sample}_R1_bac_ssu.mseq
-		${params.mapseq_bin} ${sample}_R2.fastq.gz_bac_ssu.fasta > ${sample}/${sample}_R2_bac_ssu.mseq
-		"""
-	} else {
-		"""
-		mkdir -p ${sample}
-		${params.mapseq_bin} ${sample}_R1.fastq.gz_bac_ssu.fasta > ${sample}/${sample}_R1_bac_ssu.mseq
-		"""
-	}
+	def mtags_input = (seqs.size() == 2) ? "-f ${sample}_R1.fastq.gz_bac_ssu.fasta -r ${sample}_R2.fastq.gz_bac_ssu.fasta" : "-s ${sample}_R1.fastq.gz_bac_ssu.fasta";
+	"""
+	mtags annotate -t $task.cpus -o . -n ${sample} ${mtags_input}
+	"""
 }
 
 
-process collate_mapseq_tables {
+process mtags_merge {
 	publishDir "$output_dir", mode: params.publish_mode
 
 	input:
-	path(mapped_seqs)
+	path(mtags_bins)
 
 	output:
-	path("otu_tables/mapseq_counts_genus_*_bac_ssu.tsv"), emit: ssu_tables
+	path("mtags_tables/merged_profile.*"), emit: mtags_tables
 
 	script:
-	if (mapped_seqs.size() % 2 == 0) {
-		"""
-		mkdir -p otu_tables
-		${params.mapseq_bin} -otutable -tl 5 \$(ls *_R1_bac_ssu.mseq) | sed 's/_R1_bac_ssu.mseq//g' > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
-		${params.mapseq_bin} -otutable -tl 5 \$(ls *_R2_bac_ssu.mseq) | sed 's/_R2_bac_ssu.mseq//g' > otu_tables/mapseq_counts_genus_rev_bac_ssu.tsv
-		"""
-	} else {
-		"""
-		mkdir -p otu_tables
-		${params.mapseq_bin} -otutable -tl 5 \$(ls *_R1_bac_ssu.mseq) | sed 's/_R1_bac_ssu.mseq//g' > otu_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
-		"""
-	}
+	"""
+	mkdir mtags_tables
+	mtags merge -i *bins -o mtags_tables/merged_profile
+	"""
 }
 
 
@@ -316,17 +300,25 @@ workflow {
 
 	count_reads(combined_bam_ch)
 
-	pathseq(combined_bam_ch)
+	if (!params.skip_pathseq) {
+		pathseq(combined_bam_ch)
+	}
 
 	/* perform fastq-based analyses */
 
-	kraken2(combined_fastq_ch)
+	if (!params.skip_kraken) {
+		kraken2(combined_fastq_ch)
+	}
 
-	motus(combined_fastq_ch)
+	if (!params.skip_motus) {
+		motus(combined_fastq_ch)
+	}
 
-	mtag_extraction(combined_fastq_ch)
+	if (!params.mtags) {
+		mtags_extract(combined_fastq_ch)
 
-	mapseq(mtag_extraction.out.mtag_out)
+		mtags_annotate(mtags_extract.out.mtags_out)
 
-	collate_mapseq_tables(mapseq.out.bac_ssu.collect())
+		mtags_merge(mtags_annotate.out.mtags_bins.collect())
+	}
 }
