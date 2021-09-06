@@ -28,11 +28,7 @@ def run_mtags = (!params.skip_mtags || params.run_mtags);
 def run_motus2 = (!params.skip_motus2 || params.run_motus2);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_count_reads = (!params.skip_counts || params.run_counts);
-
 def convert_fastq2bam = (run_pathseq || run_count_reads);
-
-
-
 
 
 process bam2fq {
@@ -117,7 +113,6 @@ process count_reads {
 	tuple val(sample), path(bam)
 
 	output:
-	//tuple val(sample),
 	tuple val(sample), path("${sample}/${sample}.libsize.txt"), emit: counts
 	tuple val(sample), path("${sample}/${sample}.is_paired.txt"), emit: is_paired
 	tuple val(sample), path("${sample}/${sample}.flagstats.txt"), emit: flagstats
@@ -225,12 +220,6 @@ process pathseq {
 	output:
 	tuple val(sample), path("${sample}/${sample}.score*"), emit: scores
 	tuple val(sample), path("${sample}/${sample}.bam*"), emit: bam
-	/*val(sample), emit: sample
-	path("${sample}/${sample}.pathseq.bam"), emit: bam
-	path("${sample}/${sample}.pathseq.bam.sbi"), emit: sbi
-	path("${sample}/${sample}.pathseq.score_metrics"), emit: score_metrics
-	path("${sample}/${sample}.pathseq.scores"), emit: scores
-	*/
 
 	script:
 	"""
@@ -285,17 +274,7 @@ process collate_data {
 	${pathseq_output} \\
 	${counts_output} \\
 	--out_folder combined_profiles_rds/
-	
 	"""
-    //--kraken2_res_path kraken2/ \\
-    //--mOTUs_res_path motus/ \\
-    //--mTAGs_res_path mtags_tables/ \\
-    //--libsize_res_path libsize/ \\
-    //--lib_layout_res_path lib_layout/ \\
-    //--out_folder combined_profiles_rds/
-	//"""	
-    // --PathSeq_res_path pathseq/ \\
-
 }
 
 
@@ -390,93 +369,33 @@ workflow {
 		mtags_merge(mtags_annotate.out.mtags_bins.collect())
 	}
 
-	data_to_collate = Channel.empty()
+	/* collate data */
+
+	data_to_collate_ch = Channel.empty()
+
 	if (run_kraken2) {
-		data_to_collate = data_to_collate.concat(kraken2.out.kraken2_out)
+		data_to_collate_ch = data_to_collate_ch.concat(kraken2.out.kraken2_out)
 	}
+
 	if (run_count_reads) {
-		data_to_collate = data_to_collate.concat(count_reads.out.counts)
+		data_to_collate_ch = data_to_collate_ch.concat(count_reads.out.counts)
 			.concat(count_reads.out.is_paired)
 	}
+
 	if (run_motus2) {
-		data_to_collate = data_to_collate.concat(motus2.out.motus_out)
+		data_to_collate_ch = data_to_collate_ch.concat(motus2.out.motus_out)
 	}
+
 	if (run_pathseq) {
-		data_to_collate = data_to_collate.concat(pathseq.out.scores)
+		data_to_collate_ch = data_to_collate_ch.concat(pathseq.out.scores)
 	}
-	
-	data_to_collate = data_to_collate
+
+	data_to_collate_ch = data_to_collate_ch
 		.map { sample, files -> return files }
 
 	if (run_mtags) {
-		data_to_collate = data_to_collate.concat(mtags_merge.out.mtags_tables)
+		data_to_collate_ch = data_to_collate_ch.concat(mtags_merge.out.mtags_tables)
 	}
-	data_to_collate.collect().view()
-
-	collate_data(data_to_collate.collect())
-	
-	/*data_to_collate_ch = kraken2.out.kraken2_out
-		.concat(count_reads.out.counts)
-		.concat(count_reads.out.is_paired)
-		.concat(pathseq.out.scores)
-	data_to_collate_ch = data_to_collate_ch.map { sample, files -> return files } */
-	//data_to_collate_ch.collect().view()
-
-	/*
-	kraken2_out = kraken2.out.kraken2_out.map { sample, files -> return path(files) }.collect()
-	//kraken2_out.view()
-
-	counts_out = count_reads.out.counts.map { sample, files -> return path(files) }.collect()
-	//counts_out.view()
-
-	libtype_out = count_reads.out.is_paired.map { sample, files -> return path(files) }.collect()
-	//libtype_out.view()
-
-	pathseq_out = pathseq.out.scores.map { sample, files -> return path(files) }.collect()
-	//pathseq_out.view()
-
-	data_to_collate_ch = kraken2_out //Channel.empty()
-		//.concat(kraken2_out)
-		.concat(counts_out)
-		.concat(libtype_out)
-		.concat(pathseq_out)
-		.concat(mtags_merge.out.mtags_tables)
-
-	data_to_collate_ch.view()
 
 	collate_data(data_to_collate_ch.collect())
-	*/
-	
-	/*
-	data_to_collate_ch = Channel.empty()
-		.concat(kraken2.out.kraken2_out.collect()
-			.map { sample, files -> return files }
-		)
-		.concat(count_reads.out.counts.collect()
-			.map { sample, files -> return files }
-		)
-		.concat(count_reads.out.is_paired.collect()
-			.map { sample, files -> return files }
-		)
-		.concat(pathseq.out.scores.collect()
-			.map { sample, files -> return files }
-		)
-		.concat(mtags_merge.out.mtags_tables)
-		// .collect()
-	data_to_collate_ch.view()
-
-	collate_data(data_to_collate_ch)
-	*/
-/*		
-	path("${sample}/${sample}.pathseq.scores"), emit: txt
-
-path("${sample}/${sample}.libsize.txt"), emit: counts
-path("${sample}/${sample}.is_paired.txt"), emit: is_paired
-	path("mtags_tables/merged_profile.*"), emit: mtags_tables
-	tuple val(sample), path("${sample}/${sample}.motus.txt"), emit: motus_out
-	path("${sample}/${sample}.pathseq.scores"), emit: txt
-*/
-
-		
-
 }
