@@ -218,8 +218,8 @@ process pathseq {
 	tuple val(sample), path(bam)
 
 	output:
-	tuple val(sample), path("${sample}/${sample}.score*"), emit: scores
-	tuple val(sample), path("${sample}/${sample}.bam*"), emit: bam
+	tuple val(sample), path("${sample}/${sample}.pathseq.score*"), emit: scores
+	tuple val(sample), path("${sample}/${sample}.pathseq.bam*"), emit: bam
 
 	script:
 	"""
