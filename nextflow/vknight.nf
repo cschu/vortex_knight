@@ -258,30 +258,43 @@ process collate_data {
 	path(outputs)
 
 	output:
-	path("collated/*.rds"), emit: collated_data
+	path("combined_profiles_rds/*.rds"), emit: collated_data
 
 	script:
+	def kraken2_output = run_kraken2 ? "--kraken2_res_path kraken2/" : ""
+	def motus_output = run_motus2 ? "--mOTUs_res_path motus/" : ""
+	def mtags_output = run_mtags ? "--mTAGs_res_path mtags_tables/" : ""
+	def counts_output = run_count_reads ? "--libsize_res_path libsize/ --lib_layout_res_path lib_layout/" : ""
+	def pathseq_output = run_pathseq ? "--PathSeq_res_path pathseq/" : ""
 	"""
 	mkdir -p combined_profiles_rds/
 	mkdir -p {kraken2,pathseq,motus,libsize,lib_layout,otu_tables,mtags_tables}
 
-	find \$(pwd) -maxdepth 1 -type f -name '*kraken2_report.txt' -exec ln -sf {} kraken2/ \\;
-	find \$(pwd) -maxdepth 1 -type f -name '*pathseq.scores' -exec ln -sf {} pathseq/ \\;
-	find \$(pwd) -maxdepth 1 -type f -name '*motus.txt' -exec ln -sf {} motus/ \\;
-	find \$(pwd) -maxdepth 1 -type f -name '*libsize.txt' -exec ln -sf {} libsize/ \\;
-	find \$(pwd) -maxdepth 1 -type f -name '*is_paired.txt' -exec ln -sf {} lib_layout/ \\;
-	find \$(pwd) -maxdepth 1 -type f -name '*bac_ssu.tsv' -exec ln -sf {} otu_tables/ \\;
-	find \$(pwd) -maxdepth 1 -type f -name 'merged_profile.genus.tsv' -exec ln -sf {} mtags_tables/ \\;
+	find \$(pwd) -maxdepth 1 -name '*kraken2_report.txt' -exec ln -sf {} kraken2/ \\;
+	find \$(pwd) -maxdepth 1 -name '*pathseq.scores' -exec ln -sf {} pathseq/ \\;
+	find \$(pwd) -maxdepth 1 -name '*motus.txt' -exec ln -sf {} motus/ \\;
+	find \$(pwd) -maxdepth 1 -name '*libsize.txt' -exec ln -sf {} libsize/ \\;
+	find \$(pwd) -maxdepth 1 -name '*is_paired.txt' -exec ln -sf {} lib_layout/ \\;
+	find \$(pwd) -maxdepth 1 -name '*bac_ssu.tsv' -exec ln -sf {} otu_tables/ \\;
+	find \$(pwd) -maxdepth 1 -name 'merged_profile.genus.tsv' -exec ln -sf {} mtags_tables/ \\;
 
 	Rscript ${params.collate_script} \\
-    --kraken2_res_path kraken2/ \\
-    --mOTUs_res_path motus/ \\
-    --PathSeq_res_path pathseq/ \\
-    --mTAGs_res_path mtags_tables/ \\
-    --libsize_res_path libsize/ \\
-    --lib_layout_res_path lib_layout/ \\
-    --out_folder combined_profiles_rds/
-	"""	
+	${kraken2_output} \\
+	${motus_output} \\
+	${mtags_output} \\
+	${pathseq_output} \\
+	${counts_output} \\
+	--out_folder combined_profiles_rds/
+	
+	"""
+    //--kraken2_res_path kraken2/ \\
+    //--mOTUs_res_path motus/ \\
+    //--mTAGs_res_path mtags_tables/ \\
+    //--libsize_res_path libsize/ \\
+    //--lib_layout_res_path lib_layout/ \\
+    //--out_folder combined_profiles_rds/
+	//"""	
+    // --PathSeq_res_path pathseq/ \\
 
 }
 
@@ -377,13 +390,37 @@ workflow {
 		mtags_merge(mtags_annotate.out.mtags_bins.collect())
 	}
 
+	data_to_collate = Channel.empty()
+	if (run_kraken2) {
+		data_to_collate = data_to_collate.concat(kraken2.out.kraken2_out)
+	}
+	if (run_count_reads) {
+		data_to_collate = data_to_collate.concat(count_reads.out.counts)
+			.concat(count_reads.out.is_paired)
+	}
+	if (run_motus2) {
+		data_to_collate = data_to_collate.concat(motus2.out.motus_out)
+	}
+	if (run_pathseq) {
+		data_to_collate = data_to_collate.concat(pathseq.out.scores)
+	}
+	
+	data_to_collate = data_to_collate
+		.map { sample, files -> return files }
 
-	data_to_collate_ch = kraken2.out.kraken2_out
+	if (run_mtags) {
+		data_to_collate = data_to_collate.concat(mtags_merge.out.mtags_tables)
+	}
+	data_to_collate.collect().view()
+
+	collate_data(data_to_collate.collect())
+	
+	/*data_to_collate_ch = kraken2.out.kraken2_out
 		.concat(count_reads.out.counts)
 		.concat(count_reads.out.is_paired)
 		.concat(pathseq.out.scores)
-	data_to_collate_ch = data_to_collate_ch.map { sample, files -> return files }
-	data_to_collate_ch.collect().view()
+	data_to_collate_ch = data_to_collate_ch.map { sample, files -> return files } */
+	//data_to_collate_ch.collect().view()
 
 	/*
 	kraken2_out = kraken2.out.kraken2_out.map { sample, files -> return path(files) }.collect()
