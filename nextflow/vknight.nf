@@ -28,11 +28,7 @@ def run_mtags = (!params.skip_mtags || params.run_mtags);
 def run_motus2 = (!params.skip_motus2 || params.run_motus2);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_count_reads = (!params.skip_counts || params.run_counts);
-
 def convert_fastq2bam = (run_pathseq || run_count_reads);
-
-
-
 
 
 process bam2fq {
@@ -117,10 +113,9 @@ process count_reads {
 	tuple val(sample), path(bam)
 
 	output:
-	//tuple val(sample),
-	path("${sample}/${sample}.libsize.txt"), emit: counts
-	path("${sample}/${sample}.is_paired.txt"), emit: is_paired
-	path("${sample}/${sample}.flagstats.txt"), emit: flagstats
+	tuple val(sample), path("${sample}/${sample}.libsize.txt"), emit: counts
+	tuple val(sample), path("${sample}/${sample}.is_paired.txt"), emit: is_paired
+	tuple val(sample), path("${sample}/${sample}.flagstats.txt"), emit: flagstats
 
 	script:
 	"""
@@ -223,11 +218,8 @@ process pathseq {
 	tuple val(sample), path(bam)
 
 	output:
-	val(sample), emit: sample
-	path("${sample}/${sample}.pathseq.bam"), emit: bam
-	path("${sample}/${sample}.pathseq.bam.sbi"), emit: sbi
-	path("${sample}/${sample}.pathseq.score_metrics"), emit: score_metrics
-	path("${sample}/${sample}.pathseq.scores"), emit: txt
+	tuple val(sample), path("${sample}/${sample}.pathseq.score*"), emit: scores
+	tuple val(sample), path("${sample}/${sample}.pathseq.bam*"), emit: bam
 
 	script:
 	"""
@@ -244,6 +236,44 @@ process pathseq {
 		--output ${sample}/${sample}.pathseq.bam \\
 		--scores-output ${sample}/${sample}.pathseq.scores \\
 		--score-metrics ${sample}/${sample}.pathseq.score_metrics
+	"""
+}
+
+
+process collate_data {
+	publishDir "$output_dir", mode: params.publish_mode
+
+	input:
+	path(outputs)
+
+	output:
+	path("combined_profiles_rds/*.rds"), emit: collated_data
+
+	script:
+	def kraken2_output = run_kraken2 ? "--kraken2_res_path kraken2/" : ""
+	def motus_output = run_motus2 ? "--mOTUs_res_path motus/" : ""
+	def mtags_output = run_mtags ? "--mTAGs_res_path mtags_tables/" : ""
+	def counts_output = run_count_reads ? "--libsize_res_path libsize/ --lib_layout_res_path lib_layout/" : ""
+	def pathseq_output = run_pathseq ? "--PathSeq_res_path pathseq/" : ""
+	"""
+	mkdir -p combined_profiles_rds/
+	mkdir -p {kraken2,pathseq,motus,libsize,lib_layout,otu_tables,mtags_tables}
+
+	find \$(pwd) -maxdepth 1 -name '*kraken2_report.txt' -exec ln -sf {} kraken2/ \\;
+	find \$(pwd) -maxdepth 1 -name '*pathseq.scores' -exec ln -sf {} pathseq/ \\;
+	find \$(pwd) -maxdepth 1 -name '*motus.txt' -exec ln -sf {} motus/ \\;
+	find \$(pwd) -maxdepth 1 -name '*libsize.txt' -exec ln -sf {} libsize/ \\;
+	find \$(pwd) -maxdepth 1 -name '*is_paired.txt' -exec ln -sf {} lib_layout/ \\;
+	find \$(pwd) -maxdepth 1 -name '*bac_ssu.tsv' -exec ln -sf {} otu_tables/ \\;
+	find \$(pwd) -maxdepth 1 -name 'merged_profile.genus.tsv' -exec ln -sf {} mtags_tables/ \\;
+
+	Rscript ${params.collate_script} \\
+	${kraken2_output} \\
+	${motus_output} \\
+	${mtags_output} \\
+	${pathseq_output} \\
+	${counts_output} \\
+	--out_folder combined_profiles_rds/
 	"""
 }
 
@@ -337,5 +367,37 @@ workflow {
 		mtags_annotate(mtags_extract.out.mtags_out)
 
 		mtags_merge(mtags_annotate.out.mtags_bins.collect())
+	}
+
+	/* collate data */
+
+	if (params.collate_script != null && params.collate_script != "") {
+		data_to_collate_ch = Channel.empty()
+	
+		if (run_kraken2) {
+			data_to_collate_ch = data_to_collate_ch.concat(kraken2.out.kraken2_out)
+		}
+	
+		if (run_count_reads) {
+			data_to_collate_ch = data_to_collate_ch.concat(count_reads.out.counts)
+				.concat(count_reads.out.is_paired)
+		}
+	
+		if (run_motus2) {
+			data_to_collate_ch = data_to_collate_ch.concat(motus2.out.motus_out)
+		}
+	
+		if (run_pathseq) {
+			data_to_collate_ch = data_to_collate_ch.concat(pathseq.out.scores)
+		}
+	
+		data_to_collate_ch = data_to_collate_ch
+			.map { sample, files -> return files }
+	
+		if (run_mtags) {
+			data_to_collate_ch = data_to_collate_ch.concat(mtags_merge.out.mtags_tables)
+		}
+
+		collate_data(data_to_collate_ch.collect())
 	}
 }
