@@ -371,31 +371,33 @@ workflow {
 
 	/* collate data */
 
-	data_to_collate_ch = Channel.empty()
+	if (params.collate_script != null && params.collate_script != "") {
+		data_to_collate_ch = Channel.empty()
+	
+		if (run_kraken2) {
+			data_to_collate_ch = data_to_collate_ch.concat(kraken2.out.kraken2_out)
+		}
+	
+		if (run_count_reads) {
+			data_to_collate_ch = data_to_collate_ch.concat(count_reads.out.counts)
+				.concat(count_reads.out.is_paired)
+		}
+	
+		if (run_motus2) {
+			data_to_collate_ch = data_to_collate_ch.concat(motus2.out.motus_out)
+		}
+	
+		if (run_pathseq) {
+			data_to_collate_ch = data_to_collate_ch.concat(pathseq.out.scores)
+		}
+	
+		data_to_collate_ch = data_to_collate_ch
+			.map { sample, files -> return files }
+	
+		if (run_mtags) {
+			data_to_collate_ch = data_to_collate_ch.concat(mtags_merge.out.mtags_tables)
+		}
 
-	if (run_kraken2) {
-		data_to_collate_ch = data_to_collate_ch.concat(kraken2.out.kraken2_out)
+		collate_data(data_to_collate_ch.collect())
 	}
-
-	if (run_count_reads) {
-		data_to_collate_ch = data_to_collate_ch.concat(count_reads.out.counts)
-			.concat(count_reads.out.is_paired)
-	}
-
-	if (run_motus2) {
-		data_to_collate_ch = data_to_collate_ch.concat(motus2.out.motus_out)
-	}
-
-	if (run_pathseq) {
-		data_to_collate_ch = data_to_collate_ch.concat(pathseq.out.scores)
-	}
-
-	data_to_collate_ch = data_to_collate_ch
-		.map { sample, files -> return files }
-
-	if (run_mtags) {
-		data_to_collate_ch = data_to_collate_ch.concat(mtags_merge.out.mtags_tables)
-	}
-
-	collate_data(data_to_collate_ch.collect())
 }
