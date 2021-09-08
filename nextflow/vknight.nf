@@ -43,7 +43,7 @@ process bam2fq {
 	script:
 	"""
 	mkdir -p out
-	samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 3840 -0 ${sample}_other.fastq.gz -1 ${sample}_R1.fastq.gz -2 ${sample}_R2.fastq.gz
+	samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 -0 ${sample}_other.fastq.gz -1 ${sample}_R1.fastq.gz -2 ${sample}_R2.fastq.gz
 
 	if [[ -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
 	then
