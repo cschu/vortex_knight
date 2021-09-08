@@ -25,6 +25,7 @@ if (!params.pathseq_min_clipped_read_length) {
 
 def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2);
 def run_mtags = (!params.skip_mtags || params.run_mtags);
+def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && params.mapseq_bin)
 def run_motus2 = (!params.skip_motus2 || params.run_motus2);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_count_reads = (!params.skip_counts || params.run_counts);
@@ -191,6 +192,55 @@ process mtags_merge {
 	mtags merge -i *bins -o mtags_tables/merged_profile
 	"""
 }
+
+
+process mapseq {
+	input:
+	tuple val(sample), path(seqs)
+
+	output:
+	path("${sample}/${sample}_R*bac_ssu.mseq"), emit: bac_ssu
+
+	script:
+	if (seqs.size() == 2) {
+		"""
+		mkdir -p ${sample}
+		${params.mapseq_bin} ${sample}_R1.fastq.gz_bac_ssu.fasta > ${sample}/${sample}_R1_bac_ssu.mseq
+		${params.mapseq_bin} ${sample}_R2.fastq.gz_bac_ssu.fasta > ${sample}/${sample}_R2_bac_ssu.mseq
+		"""
+	} else {
+		"""
+		mkdir -p ${sample}
+		${params.mapseq_bin} ${sample}_R1.fastq.gz_bac_ssu.fasta > ${sample}/${sample}_R1_bac_ssu.mseq
+		"""
+	}
+}
+
+
+process collate_mapseq_tables {
+	publishDir "$output_dir", mode: params.publish_mode
+
+	input:
+	path(mapped_seqs)
+
+	output:
+	path("mapseq_tables/mapseq_counts_genus_*_bac_ssu.tsv"), emit: ssu_tables
+
+	script:
+	if (mapped_seqs.size() == 2) {
+		"""
+		mkdir -p mapseq_tables
+		${params.mapseq_bin} -otutable -tl 5 \$(ls *_R1_bac_ssu.mseq) | sed 's/_R1_bac_ssu.mseq//g' > mapseq_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
+		${params.mapseq_bin} -otutable -tl 5 \$(ls *_R2_bac_ssu.mseq) | sed 's/_R2_bac_ssu.mseq//g' > mapseq_tables/mapseq_counts_genus_rev_bac_ssu.tsv
+		"""
+	} else {
+		"""
+		mkdir -p mapseq_tables
+		${params.mapseq_bin} -otutable -tl 5 \$(ls *_R1_bac_ssu.mseq) | sed 's/_R1_bac_ssu.mseq//g' > mapseq_tables/mapseq_counts_genus_fwd_bac_ssu.tsv
+		"""
+	}
+}
+
 
 
 process motus2 {
@@ -367,6 +417,12 @@ workflow {
 		mtags_annotate(mtags_extract.out.mtags_out)
 
 		mtags_merge(mtags_annotate.out.mtags_bins.collect())
+
+		if (run_mapseq) {
+			mapseq(mtags_extract.out.mtags_out)
+
+			collate_mapseq_tables(mapseq.out.bac_ssu.collect())
+		}
 	}
 
 	/* collate data */
