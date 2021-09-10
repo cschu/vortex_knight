@@ -26,7 +26,7 @@ nextflow run /path/to/vortex_knight/main.nf --input_dir /path/to/input_files --o
 
 *Note: Nextflow itself requires at least `5GB` of memory.*
 
-### Running from GitHub
+### Running from GitHub
 
 This requires a local nextflow installation. If you don't have one, see Steps 1/2 above.
 
