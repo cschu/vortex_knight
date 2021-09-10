@@ -23,11 +23,11 @@ if (!params.pathseq_min_clipped_read_length) {
 	params.pathseq_min_clipped_read_length = 31
 }
 
-def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2);
+def run_kraken2 = ((!params.skip_kraken2 || params.run_kraken2) && (params.kraken_database != null));
 def run_mtags = (!params.skip_mtags || params.run_mtags);
-def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && params.mapseq_bin)
+def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && (params.mapseq_bin != null))
 def run_motus2 = (!params.skip_motus2 || params.run_motus2);
-def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
+def run_pathseq = ((!params.skip_pathseq || params.run_pathseq) && (params.pathseq_database != null));
 def run_count_reads = (!params.skip_counts || params.run_counts);
 def convert_fastq2bam = (run_pathseq || run_count_reads);
 

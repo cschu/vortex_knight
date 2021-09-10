@@ -49,8 +49,8 @@ nextflow run cschu/vortex_knight --input_dir /path/to/input_files --output_dir /
 
 #### Notes
 * `mapseq` can only run in combination with `mtags` and when the parameter `mapseq_bin` is explicitly set.
-* `kraken2` can only run when the parameter `kraken_database` is set. (TODO!)
-* `pathseq` can only run when the parameter `pathseq_database` is set. (TODO!)
+* `kraken2` can only run when the parameter `kraken_database` is set.
+* `pathseq` can only run when the parameter `pathseq_database` is set.
 * a pre-downloaded motus database can be set with the parameter `motus_database`.
 * results are only collated if the parameter `collate_script` is set. (TODO -> change to baseDir?)
 
