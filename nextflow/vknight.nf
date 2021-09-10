@@ -45,17 +45,22 @@ process bam2fq {
 	mkdir -p out
 	samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 -0 ${sample}_other.fastq.gz -1 ${sample}_R1.fastq.gz -2 ${sample}_R2.fastq.gz
 
-	if [[ -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
+	if [[ "\$?" -eq 0 ]];
 	then
-		mv ${sample}_other.fastq.gz out/${sample}_R1.fastq.gz;
-	else
-		mv ${sample}_R1.fastq.gz out/;
-		if [[ ! -z "\$(gzip -dc ${sample}_R2.fastq.gz | head -n 1)" ]];
+
+		if [[ -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
 		then
-			mv ${sample}_R2.fastq.gz out/;
+			mv ${sample}_other.fastq.gz out/${sample}_R1.fastq.gz;
+		else
+			mv ${sample}_R1.fastq.gz out/;
+			if [[ ! -z "\$(gzip -dc ${sample}_R2.fastq.gz | head -n 1)" ]];
+			then
+				mv ${sample}_R2.fastq.gz out/;
+			fi;
 		fi;
+
+		rm -rf *.fastq.gz
 	fi;
-	rm -rf *.fastq.gz
 	"""
 }
 
@@ -429,27 +434,27 @@ workflow {
 
 	if (params.collate_script != null && params.collate_script != "") {
 		data_to_collate_ch = Channel.empty()
-	
+
 		if (run_kraken2) {
 			data_to_collate_ch = data_to_collate_ch.concat(kraken2.out.kraken2_out)
 		}
-	
+
 		if (run_count_reads) {
 			data_to_collate_ch = data_to_collate_ch.concat(count_reads.out.counts)
 				.concat(count_reads.out.is_paired)
 		}
-	
+
 		if (run_motus2) {
 			data_to_collate_ch = data_to_collate_ch.concat(motus2.out.motus_out)
 		}
-	
+
 		if (run_pathseq) {
 			data_to_collate_ch = data_to_collate_ch.concat(pathseq.out.scores)
 		}
-	
+
 		data_to_collate_ch = data_to_collate_ch
 			.map { sample, files -> return files }
-	
+
 		if (run_mtags) {
 			data_to_collate_ch = data_to_collate_ch.concat(mtags_merge.out.mtags_tables)
 		}
