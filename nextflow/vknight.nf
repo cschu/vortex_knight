@@ -42,6 +42,7 @@ process bam2fq {
 
 	script:
 	"""
+	set -o pipefail
 	mkdir -p out
 	samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 -0 ${sample}_other.fastq.gz -1 ${sample}_R1.fastq.gz -2 ${sample}_R2.fastq.gz
 
@@ -50,15 +51,22 @@ process bam2fq {
 
 		if [[ -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
 		then
-			mv ${sample}_other.fastq.gz out/${sample}_R1.fastq.gz;
-		else
-			mv ${sample}_R1.fastq.gz out/;
-			if [[ ! -z "\$(gzip -dc ${sample}_R2.fastq.gz | head -n 1)" ]];
+			if [[ -z "\$(gzip -dc ${sample}_other.fastq.gz | head -n 1)" ]];
 			then
-				mv ${sample}_R2.fastq.gz out/;
+				mv -v ${sample}_other.fastq.gz out/${sample}_R1.fastq.gz;
+			fi;
+		else
+			if [[ ! -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
+			then
+				mv -v ${sample}_R1.fastq.gz out/;
+				if [[ ! -z "\$(gzip -dc ${sample}_R2.fastq.gz | head -n 1)" ]];
+				then
+					mv -v ${sample}_R2.fastq.gz out/;
+				fi;
 			fi;
 		fi;
 
+		ls -l *.fastq.gz
 		rm -rf *.fastq.gz
 	fi;
 	"""
