@@ -19,6 +19,14 @@ if (params.motus_database) {
 	motus_database = ""
 }
 
+if (!params.motus2_min_length) {
+	params.motus2_min_length = 30
+}
+
+if (!params.motus2_n_marker_genes) {
+	params.motus2_n_marker_genes = 3
+}
+
 if (!params.pathseq_min_clipped_read_length) {
 	params.pathseq_min_clipped_read_length = 31
 }
@@ -269,7 +277,7 @@ process motus2 {
 	def motus_input = (reads.size() == 2) ? "-f ${sample}_R1.fastq.gz -r ${sample}_R2.fastq.gz" : "-s ${sample}_R1.fastq.gz";
 	"""
 	mkdir -p ${sample}
-	motus profile -t $task.cpus -g 1 -k genus -c -v 7 ${motus_database} ${motus_input} > ${sample}/${sample}.motus.txt
+	motus profile -t $task.cpus -g 1 -k genus -c -v 7 -l ${params.motus2_min_length} -g ${params.motus2_n_marker_genes} ${motus_database} ${motus_input} > ${sample}/${sample}.motus.txt
 	"""
 }
 
