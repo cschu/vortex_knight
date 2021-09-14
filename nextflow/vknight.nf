@@ -59,22 +59,20 @@ process bam2fq {
 
 		if [[ -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
 		then
-			if [[ -z "\$(gzip -dc ${sample}_other.fastq.gz | head -n 1)" ]];
+			if [[ ! -z "\$(gzip -dc ${sample}_other.fastq.gz | head -n 1)" ]];
 			then
 				mv -v ${sample}_other.fastq.gz out/${sample}_R1.fastq.gz;
 			fi;
 		else
-			if [[ ! -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
-			then
 				mv -v ${sample}_R1.fastq.gz out/;
 				if [[ ! -z "\$(gzip -dc ${sample}_R2.fastq.gz | head -n 1)" ]];
 				then
 					mv -v ${sample}_R2.fastq.gz out/;
 				fi;
-			fi;
 		fi;
 
 		ls -l *.fastq.gz
+		ls -l out/*.fastq.gz
 		rm -rf *.fastq.gz
 	fi;
 	"""
