@@ -41,17 +41,19 @@ def convert_fastq2bam = (run_pathseq || run_count_reads);
 
 
 process bam2fq {
+	publishDir "$output_dir", mode: params.publish_mode
+
 	input:
 	tuple val(sample), path(bam)
 
 	output:
 	stdout
-	tuple val(sample), path("out/${sample}*.fastq.gz"), emit: reads
+	tuple val(sample), path("fastq/${sample}/${sample}*.fastq.gz"), emit: reads
 
 	script:
 	"""
 	set -o pipefail
-	mkdir -p out
+	mkdir -p fastq/${sample} 
 	samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 -0 ${sample}_other.fastq.gz -1 ${sample}_R1.fastq.gz -2 ${sample}_R2.fastq.gz
 
 	if [[ "\$?" -eq 0 ]];
@@ -61,18 +63,18 @@ process bam2fq {
 		then
 			if [[ ! -z "\$(gzip -dc ${sample}_other.fastq.gz | head -n 1)" ]];
 			then
-				mv -v ${sample}_other.fastq.gz out/${sample}_R1.fastq.gz;
+				mv -v ${sample}_other.fastq.gz fastq/${sample}/${sample}_R1.fastq.gz;
 			fi;
 		else
-				mv -v ${sample}_R1.fastq.gz out/;
+				mv -v ${sample}_R1.fastq.gz fastq/${sample}/;
 				if [[ ! -z "\$(gzip -dc ${sample}_R2.fastq.gz | head -n 1)" ]];
 				then
-					mv -v ${sample}_R2.fastq.gz out/;
+					mv -v ${sample}_R2.fastq.gz fastq/${sample}/;
 				fi;
 		fi;
 
 		ls -l *.fastq.gz
-		ls -l out/*.fastq.gz
+		ls -l fastq/${sample}/*.fastq.gz
 		rm -rf *.fastq.gz
 	fi;
 	"""
@@ -80,23 +82,25 @@ process bam2fq {
 
 
 process prepare_fastqs {
+	publishDir "$output_dir", mode: params.publish_mode
+
 	input:
 	tuple val(sample), path(fq)
 
 	output:
-	tuple val(sample), path("out/${sample}_R*.fastq.gz") ,emit: reads
+	tuple val(sample), path("fastq/${sample}/${sample}_R*.fastq.gz"), emit: reads
 
 	script:
 	if (fq.size() == 2) {
 		"""
-		mkdir -p out
-		ln -sf ../${fq[0]} out/${sample}_R1.fastq.gz
-		ln -sf ../${fq[1]} out/${sample}_R2.fastq.gz
+		mkdir -p fastq/${sample}
+		ln -sf ../${fq[0]} fastq/${sample}/${sample}_R1.fastq.gz
+		ln -sf ../${fq[1]} fastq/${sample}/${sample}_R2.fastq.gz
 		"""
 	} else {
 		"""
-		mkdir -p out
-		ln -sf ../${fq[0]} out/${sample}_R1.fastq.gz
+		mkdir -p fastq/${sample}
+		ln -sf ../${fq[0]} fastq/${sample}/${sample}_R1.fastq.gz
 		"""
 	}
 }
