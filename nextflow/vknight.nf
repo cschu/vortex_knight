@@ -94,13 +94,13 @@ process prepare_fastqs {
 	if (fq.size() == 2) {
 		"""
 		mkdir -p fastq/${sample}
-		ln -sf ../${fq[0]} fastq/${sample}/${sample}_R1.fastq.gz
-		ln -sf ../${fq[1]} fastq/${sample}/${sample}_R2.fastq.gz
+		ln -sf ../../${fq[0]} fastq/${sample}/${sample}_R1.fastq.gz
+		ln -sf ../../${fq[1]} fastq/${sample}/${sample}_R2.fastq.gz
 		"""
 	} else {
 		"""
 		mkdir -p fastq/${sample}
-		ln -sf ../${fq[0]} fastq/${sample}/${sample}_R1.fastq.gz
+		ln -sf ../../${fq[0]} fastq/${sample}/${sample}_R1.fastq.gz
 		"""
 	}
 }
