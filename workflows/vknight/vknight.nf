@@ -253,7 +253,7 @@ process mtags_extract {
 	tuple val(sample), path(reads)
 
 	output:
-	tuple val(sample), path("*_bac_ssu.fasta"), emit: mtags_out
+	tuple val(sample), path("*_bac_ssu.fasta"), optional: true, emit: mtags_out
 
 	script:
 	def mtags_input = (reads.size() == 2) ? "-f ${sample}_R1.fastq.gz -r ${sample}_R2.fastq.gz" : "-s ${sample}_R1.fastq.gz";
@@ -430,92 +430,67 @@ process collate_data {
 }
 
 
+workflow bam_analysis {
+	take:
+		bam_ch
+
+	main:
+		out_ch = Channel.empty()
+    	if (run_pathseq) {
+        	pathseq(bam_ch)
+			out_ch = out_ch.concat(pathseq.out.scores)
+    	}
+
+		out_ch = out_ch
+			.map { sample, files -> return files }
+
+	emit:
+		results = out_ch
+}
+
+
+workflow fastq_analysis {
+	take:
+		fastq_ch
+
+	main:
+		out_ch = Channel.empty()
+
+		if (run_kraken2) {
+			kraken2(fastq_ch)
+			out_ch = out_ch.concat(kraken2.out.kraken2_out)
+		}
+	
+		if (run_motus2) {
+			motus2(fastq_ch)
+			out_ch = out_ch.concat(motus2.out.motus_out)
+		}
+
+		out_ch = out_ch
+			.map { sample, files -> return files }
+
+		if (run_mtags) {
+			mtags_extract(fastq_ch)
+	
+			mtags_annotate(mtags_extract.out.mtags_out)
+	
+			mtags_merge(mtags_annotate.out.mtags_bins.collect())
+
+			out_ch = out_ch.concat(mtags_merge.out.mtags_tables)
+
+			if (run_mapseq) {
+				mapseq(mtags_extract.out.mtags_out)
+	
+				collate_mapseq_tables(mapseq.out.bac_ssu.collect())
+			}
+		}
+
+	emit:
+		results = out_ch
+}
+
+
 workflow {
-
-	/*
-		Collect all fastq files from the input directory tree.
-		It is recommended to use one subdirectory per sample.
-	*/
-
-	fastq_ch = Channel
-		.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
-		.map { file ->
-				def sample = file.name.replaceAll(/.(fastq|fq)(.gz)?$/, "")
-				sample = sample.replaceAll(/_R?[12]$/, "")
-				return tuple(sample, file)
-		}
-		.groupTuple(sort: true)
-
-	/*
-		Normalise the input fastq naming scheme
-		r1: <sample>_R1.fastq.gz
-		r2: <sample>_R2.fastq.gz
-	*/
-
-	prepare_fastqs(fastq_ch)
-
-	/*
-		Collect all bam files from the input directory tree.
-	*/
-
-	bam_ch = Channel
-		.fromPath(params.input_dir + "/" + "**.bam")
-		.map { file ->
-			def sample = file.name.replaceAll(/.bam$/, "")
-			return tuple(sample, file)
-		}
-		.groupTuple(sort: true)
-
-	/*
-		Convert input bam to fastq.
-		This gets rid of:
-		- alignment information (e.g. when reads were prealigned against host)
-		- optical duplicates, secondary/suppl alignments, reads that don't pass qual filters
-	*/
-
-	bam2fq(bam_ch)
-
-	/*
-		Combine the normalised and bam-extracted fastqs
-	*/
-
-	raw_fastq_ch = prepare_fastqs.out.reads.concat(bam2fq.out.reads)
-
-	dehumanise(raw_fastq_ch)
-	combined_bam_count_ch = dehumanise.out.bam.concat(dehumanise.out.full_bam)
-	combined_fastq_ch = dehumanise.out.fq
-	combined_bam_ch = dehumanise.out.bam
-
-	if (run_count_reads) {
-		flagstats(combined_bam_count_ch)
-    	count_reads(flagstats.out.flagstats)
-    }
-
-	if (run_pathseq) {
-		pathseq(combined_bam_ch)
-	}
-
-	if (false && convert_fastq2bam) {
-
-		/*
-			Convert all fastqs to bam files
-		*/
-
-		fq2bam(combined_fastq_ch)
-
-		combined_bam_ch = fq2bam.out.reads
-
-		/* perform bam-based analyses */
-
-		if (run_count_reads) {
-			count_reads(combined_bam_ch)
-		}
-
-		if (run_pathseq) {
-			pathseq(combined_bam_ch)
-		}
-
-	}
 
 	/* perform fastq-based analyses */
 
