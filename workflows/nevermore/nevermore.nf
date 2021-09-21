@@ -87,7 +87,7 @@ process fastqc {
 
 
 process multiqc {
-    publishDir "$output_dir", mode: params.publish_mode
+    publishDir "${params.output_dir}", mode: params.publish_mode
 	
 	input:
 	path(reports)
