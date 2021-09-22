@@ -69,19 +69,26 @@ process concat_singles {
 
 
 process fastqc {
+    publishDir "${params.output_dir}", mode: params.publish_mode, pattern: "raw_counts/*.txt"
+
 	input:
 	tuple val(sample), path(reads)
 
 	output:
 	tuple val(sample), path("fastqc/*/*fastqc_data.txt"), emit: reports
+	tuple val(sample), path("raw_counts/${sample}.txt"), emit: counts
 
 	script:
 	def process_r2 = (reads.size() == 2) ? "fastqc -t $task.cpus --extract --outdir=fastqc ${sample}_R2.fastq.gz && mv fastqc/${sample}_R2_fastqc/fastqc_data.txt fastqc/${sample}_R2_fastqc/${sample}_R2_fastqc_data.txt" : "";
 
 	"""
 	mkdir -p fastqc
+	mkdir -p raw_counts
 	fastqc -t $task.cpus --extract --outdir=fastqc ${sample}_R1.fastq.gz && mv fastqc/${sample}_R1_fastqc/fastqc_data.txt fastqc/${sample}_R1_fastqc/${sample}_R1_fastqc_data.txt
 	${process_r2}	
+
+	grep "Total Sequences" fastqc/*/*data.txt > seqcount.txt
+	echo \$(wc -l seqcount.txt)\$'\t'\$(head -n1 seqcount.txt | cut -f 2) > raw_counts/${sample}.txt
 	"""
 }
 
@@ -96,10 +103,11 @@ process multiqc {
 	path("multiqc_report.html")
 
 	script:
+	def send_report = (params.email) ? "echo . | mailx -s 'multiqc_report' -a multiqc_report.html ${params.email}" : ""
 	"""
 	multiqc -c ${params.multiqc_config} .
+	${send_report}
 	"""
-
 }
 
 

@@ -45,7 +45,7 @@ def convert_fastq2bam = (run_pathseq || run_count_reads);
 
 def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
 
-def run_bam_analysis = run_pathseq || run_count_reads
+def run_bam_analysis = run_pathseq //|| run_count_reads
 def run_fastq_analysis = run_kraken2 || run_mtags || run_mapseq || run_motus2
 
 include { nevermore_preprocess } from "./workflows/nevermore/nevermore"
@@ -65,7 +65,7 @@ process bam2fq {
 	script:
 	"""
 	set -o pipefail
-	mkdir -p fastq/${sample} 
+	mkdir -p fastq/${sample}
 	samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 -0 ${sample}_other.fastq.gz -1 ${sample}_R1.fastq.gz -2 ${sample}_R2.fastq.gz
 
 	if [[ "\$?" -eq 0 ]];
@@ -141,7 +141,7 @@ process fq2bam {
 }
 
 
-process dehumanise_kraken2 {
+process remove_host_kraken2 {
 	publishDir "$output_dir", mode: params.publish_mode
 
 	input:
@@ -162,7 +162,47 @@ process dehumanise_kraken2 {
 	gzip -c ${sample}_1.fastq > no_host/${sample}/${sample}_R1.fastq.gz
 	${move_r2}
 	"""
-	
+}
+
+
+process flagstats {
+    publishDir "$output_dir", mode: params.publish_mode
+
+    input:
+    tuple val(sample), path(bam)
+
+    output:
+    tuple val(sample), path("${sample}/${sample}.flagstats.txt"), emit: flagstats
+
+    script:
+    """
+    mkdir -p ${sample}
+    samtools flagstat $bam > "${sample}/${sample}.flagstats.txt"
+    """
+}
+
+
+process count_reads {
+    publishDir "$output_dir", mode: params.publish_mode
+
+    input:
+    //tuple val(sample), path(bam)
+    tuple val(sample), path(flagstats)
+
+    output:
+    tuple val(sample), path("${sample}/${sample}.libsize.txt"), emit: counts
+    tuple val(sample), path("${sample}/${sample}.is_paired.txt"), emit: is_paired
+    //tuple val(sample), path("${sample}/${sample}.flagstats.txt"), emit: flagstats
+
+    script:
+    """
+    mkdir -p ${sample}
+    head -n 1 "{flagstats[0]}" | awk '{print \$1 + \$3}' > "${sample}/${sample}.libsize.txt"
+    grep -m 1 "paired in sequencing" "${flagstats[0]}" | awk '{npaired = \$1 + \$3; if (npaired==0) {print "unpaired"} else {print "paired"};}' > "${sample}/${sample}.is_paired.txt"
+    """
+    //samtools flagstat $bam > "${sample}/${sample}.flagstats.txt"
+    //head -n 1 "${sample}/${sample}.flagstats.txt" | awk '{print \$1 + \$3}' > "${sample}/${sample}.libsize.txt"
+    //grep -m 1 "paired in sequencing" "${sample}/${sample}.flagstats.txt" | awk '{npaired = \$1 + \$3; if (npaired==0) {print "unpaired"} else {print "paired"};}' > "${sample}/${sample}.is_paired.txt"
 }
 
 
@@ -195,9 +235,9 @@ workflow {
 
 		nevermore_preprocess(raw_fastq_ch)
 
-		dehumanise_kraken2(nevermore_preprocess.out.preprocessed)
+		remove_host_kraken2(nevermore_preprocess.out.preprocessed)
 
-		preprocessed_ch = dehumanise_kraken2.out.reads
+		preprocessed_ch = remove_host_kraken2.out.reads
 
 	} else {
 
@@ -205,13 +245,34 @@ workflow {
 
 	}
 
-	if (run_bam_analysis) {
+
+	if (run_count_reads || run_bam_analysis) {
+
+		fq2bam(preprocessed_ch)
+
+		if (run_count_reads) {
+
+	        flagstats(fq2bam.out.reads)
+
+    	    count_reads(flagstats.out.flagstats)
+
+		}
+
+		if (run_bam_analysis) {
+
+			bam_analysis(fq2bam.out.reads)
+
+		}
+
+    }
+
+	/*if (run_bam_analysis) {
 
 		fq2bam(preprocessed_ch)
 
 		bam_analysis(fq2bam.out.reads)
 
-	}
+	}*/
 
 	if (run_fastq_analysis) {
 
