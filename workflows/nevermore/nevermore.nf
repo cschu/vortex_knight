@@ -10,26 +10,24 @@ process qc_preprocess {
 	tuple val(sample), path(reads)
 
 	output:
-	tuple val("${sample}"), path("${sample}/${sample}.qc_[RO]*.fastq.gz"), optional: true, emit: qc_reads_p
-	tuple val("${sample}"), path("${sample}/${sample}.qc_U.fastq.gz"), optional: true, emit: qc_reads_s
+	tuple val("${sample}"), path("${sample}/${sample}_R*.fastq.gz"), optional: true, emit: pairs
+	tuple val("${sample}"), path("${sample}/${sample}_U.fastq.gz"), optional: true, emit: singles
 
 	script:
-	//def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45 ref=${params.adapters} ktrim=r k=23 mink=11 hdist=1 tpe tbo"
-
 
 	if (reads.size() == 2) {
 		"""
 		maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
 		mkdir -p ${sample}
 
-		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz in2=${sample}_R2.fastq.gz out=${sample}/${sample}.qc_R1.fastq.gz out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_O.fastq.gz stats=bbduk_stats.txt
+		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz in2=${sample}_R2.fastq.gz out=${sample}/${sample}_R1.fastq.gz out2=${sample}/${sample}_R2.fastq.gz outs=${sample}/${sample}_U.fastq.gz stats=bbduk_stats.txt
 		"""
 	} else {
 		"""
 		maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
 		mkdir -p ${sample}
 
-		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz out=${sample}/${sample}.qc_U.fastq.gz stats=bbduk_stats.txt
+		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz out=${sample}/${sample}_U.fastq.gz stats=bbduk_stats.txt
 		"""
 	}
 }
@@ -40,7 +38,8 @@ process qc_bbmerge {
 	tuple val(sample), path(reads)
 
 	output:
-	tuple val(sample), path("${sample}/${sample}*.fastq.gz"), emit: merged_reads
+	tuple val(sample), path("${sample}/${sample}_M.fastq.gz"), optional: true, emit: merged
+	tuple val(sample), path("${sample}/${sample}_R*.fastq.gz"), optional: true, emit: pairs
 
 	script:
 	def merge_params = "rsem=t extend2=20 iterations=5 ecct vstrict"
@@ -48,7 +47,7 @@ process qc_bbmerge {
 	maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
 	mkdir -p ${sample}
 
-	bbmerge.sh -Xmx\$maxmem t=$task.cpus ${merge_params} in=${sample}.qc_R1.fastq.gz in2=${sample}.qc_R2.fastq.gz out=${sample}/${sample}.merged_M.fastq.gz outu1=${sample}/${sample}.merged_R1.fastq.gz outu2=${sample}/${sample}.merged_R2.fastq.gz
+	bbmerge.sh -Xmx\$maxmem t=$task.cpus ${merge_params} in=${sample}_R1.fastq.gz in2=${sample}_R2.fastq.gz out=${sample}/${sample}_M.fastq.gz outu1=${sample}/${sample}_R1.fastq.gz outu2=${sample}/${sample}_R2.fastq.gz
 	"""
 }
 
@@ -58,12 +57,12 @@ process concat_singles {
 	tuple val(sample), path(reads)
 
 	output:
-	tuple val(sample), path("${sample}/${sample}_concat_singles.fastq.gz"), emit: concat_reads
+	tuple val(sample), path("${sample}/${sample}.singles_R1.fastq.gz"), emit: concat_reads
 
 	script:
 	"""
 	mkdir -p $sample
-	cat ${reads} > ${sample}/${sample}_concat_singles.fastq.gz
+	cat ${reads} > ${sample}/${sample}.singles_R1.fastq.gz
 	"""
 }
 
@@ -133,7 +132,7 @@ workflow nevermore_preprocess {
 			Preprocess (QC) reads, then split preprocessed pairs from single-end / orphaned reads.
 		*/
 
-		qc_preprocess(reads_ch) //prepare_fastqs.out.reads)
+		qc_preprocess(reads_ch)
 
 		/*
 			Merge paired-end reads, then split merged reads from those that failed to merge.
@@ -142,9 +141,9 @@ workflow nevermore_preprocess {
 		//if (merge_paired_end) {
 		if (params.merge_paired) {
 
-			qc_bbmerge(qc_preprocess.out.qc_reads_p)
+			qc_bbmerge(qc_preprocess.out.pairs)
 
-			qc_bbmerge.out.merged_reads
+			/*qc_bbmerge.out.merged_reads
 				.multiMap { sample, reads ->
 					merged: (reads[0] != null && reads[0].name.endsWith(".fastq.gz")) ? [sample, reads[0]] : 0
 					paired: (reads[1] != null && reads[1].name.endsWith(".fastq.gz") && reads[2] != null && reads[2].name.endsWith(".fastq.gz")) ? [sample, [reads[1], reads[2]]] : 0
@@ -153,17 +152,24 @@ workflow nevermore_preprocess {
 				.set { merged_reads_ch }
 
 			merged_merged_ch = merged_reads_ch.merged.filter({ it != 0 })
-			paired_ch = merged_reads_ch.paired.filter({ it != 0 })
+			paired_ch = merged_reads_ch.paired.filter({ it != 0 }) */
+
+			paired_ch = qc_bbmerge.out.pairs
+			merged_ch = qc_bbmerge.out.merged
 
 			/*
 				Redirect all unpaired reads into a common channel, then concatenate them into a single unpaired fastq file.
 			*/
 
-			single_reads_ch = merged_merged_ch.concat(qc_preprocess.out.qc_reads_s)
+			/*single_reads_ch = merged_merged_ch.concat(qc_preprocess.out.qc_reads_s)
 				.map { sample, reads ->
 					return tuple(sample.replaceAll(/.singles$/, ""), reads)
 				}
 	        	.groupTuple(sort: true)
+			*/
+			single_reads_ch = qc_bbmerge.out.merged.concat(qc_preprocess.out.singles)
+				.map { sample, reads -> return tuple(sample, reads) }
+				.groupTuple(sort: true)
 
 			concat_singles(single_reads_ch)
 
@@ -172,8 +178,8 @@ workflow nevermore_preprocess {
 		} else {
 
 			merged_merged_ch = Channel.empty()
-			paired_ch = qc_preprocess.out.qc_reads_p
-			singles_ch = qc_preprocess.out.qc_reads_s
+			paired_ch = qc_preprocess.out.pairs
+			singles_ch = qc_preprocess.out.singles
 
 		}
 
