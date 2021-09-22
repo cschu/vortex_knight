@@ -22,14 +22,14 @@ process qc_preprocess {
 		maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
 		mkdir -p ${sample}
 
-		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz in2=${sample}_R2.fastq.gz out=${sample}/${sample}.qc_R1.fastq.gz out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_O.fastq.gz
+		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz in2=${sample}_R2.fastq.gz out=${sample}/${sample}.qc_R1.fastq.gz out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_O.fastq.gz stats=bbduk_stats.txt
 		"""
 	} else {
 		"""
 		maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
 		mkdir -p ${sample}
 
-		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz out=${sample}/${sample}.qc_U.fastq.gz
+		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz out=${sample}/${sample}.qc_U.fastq.gz stats=bbduk_stats.txt
 		"""
 	}
 }
