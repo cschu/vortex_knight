@@ -2,7 +2,7 @@
 
 nextflow.enable.dsl=2
 
-merge_paired_end = (!params.skip_merge_pairs) ? true : false;
+//merge_paired_end = (!params.skip_merge_pairs) ? true : false;
 
 
 process qc_preprocess {
@@ -85,7 +85,7 @@ process fastqc {
 	mkdir -p fastqc
 	mkdir -p raw_counts
 	fastqc -t $task.cpus --extract --outdir=fastqc ${sample}_R1.fastq.gz && mv fastqc/${sample}_R1_fastqc/fastqc_data.txt fastqc/${sample}_R1_fastqc/${sample}_R1_fastqc_data.txt
-	${process_r2}	
+	${process_r2}
 
 	grep "Total Sequences" fastqc/*/*data.txt > seqcount.txt
 	echo \$(wc -l seqcount.txt)\$'\t'\$(head -n1 seqcount.txt | cut -f 2) > raw_counts/${sample}.txt
@@ -95,7 +95,7 @@ process fastqc {
 
 process multiqc {
     publishDir "${params.output_dir}", mode: params.publish_mode
-	
+
 	input:
 	path(reports)
 
@@ -115,8 +115,8 @@ workflow nevermore_preprocess {
 	take:
 		reads_ch
 
-	main: 
-		
+	main:
+
 		/*
 			Normalise fastq file names by symlinking to R1/R2.
 		*/
@@ -139,7 +139,8 @@ workflow nevermore_preprocess {
 			Merge paired-end reads, then split merged reads from those that failed to merge.
 		*/
 
-		if (merge_paired_end) {
+		//if (merge_paired_end) {
+		if (params.merge_paired) {
 
 			qc_bbmerge(qc_preprocess.out.qc_reads_p)
 
@@ -157,13 +158,13 @@ workflow nevermore_preprocess {
 			/*
 				Redirect all unpaired reads into a common channel, then concatenate them into a single unpaired fastq file.
 			*/
-	
+
 			single_reads_ch = merged_merged_ch.concat(qc_preprocess.out.qc_reads_s)
 				.map { sample, reads ->
 					return tuple(sample.replaceAll(/.singles$/, ""), reads)
 				}
 	        	.groupTuple(sort: true)
-	
+
 			concat_singles(single_reads_ch)
 
 			singles_ch = concat_singles.out.concat_reads
@@ -171,14 +172,23 @@ workflow nevermore_preprocess {
 		} else {
 
 			merged_merged_ch = Channel.empty()
-			paired_ch = qc_preprocess.out.qc_reads_p 
+			paired_ch = qc_preprocess.out.qc_reads_p
 			singles_ch = qc_preprocess.out.qc_reads_s
-		
+
 		}
 
-		singles_ch = singles_ch
-			.map { sample, reads -> return tuple("${sample}.singles", reads) }
+		preprocessed_ch = paired_ch
+
+		if (params.keep_orphans) {
+
+			singles_ch = singles_ch
+				.map { sample, reads -> return tuple("${sample}.singles", reads) }
+
+			preprocessed_ch = preprocessed_ch.concat(singles_ch)
+
+		}
 
 	emit:
-		preprocessed = paired_ch.concat(singles_ch)
+		// preprocessed = paired_ch.concat(singles_ch)
+		preprocessed = preprocessed_ch
 }

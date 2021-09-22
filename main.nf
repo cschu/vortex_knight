@@ -234,9 +234,18 @@ workflow {
 
 		nevermore_preprocess(raw_fastq_ch)
 
-		remove_host_kraken2(nevermore_preprocess.out.preprocessed)
 
-		preprocessed_ch = remove_host_kraken2.out.reads
+		if (params.remove_host) {
+
+			remove_host_kraken2(nevermore_preprocess.out.preprocessed)
+
+			preprocessed_ch = remove_host_kraken2.out.reads
+
+		} else {
+
+			preprocessed_ch = nevermore_preprocess.out.preprocessed
+
+		}
 
 	} else {
 
@@ -265,13 +274,6 @@ workflow {
 
     }
 
-	/*if (run_bam_analysis) {
-
-		fq2bam(preprocessed_ch)
-
-		bam_analysis(fq2bam.out.reads)
-
-	}*/
 
 	if (run_fastq_analysis) {
 
