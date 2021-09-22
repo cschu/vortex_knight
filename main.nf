@@ -153,11 +153,10 @@ process remove_host_kraken2 {
 	script:
 	def out_options = (fq.size() == 2) ? "--paired --unclassified-out ${sample}#.fastq" : "--unclassified-out ${sample}_1.fastq"
 	def move_r2 = (fq.size() == 2) ? "gzip -c ${sample}_2.fastq > no_host/${sample}/${sample}_R2.fastq.gz" : ""
-	def kraken_db = "/g/scb/zeller/schudoma/kraken2/hg38_silva_genome"
 
 	"""
 	mkdir -p no_host/${sample}
-	kraken2 --threads $task.cpus --db ${kraken_db} ${out_options} --output kraken_read_report.txt --report kraken_report.txt --report-minimizer-data --gzip-compressed --minimum-hit-groups ${params.kraken2_min_hit_groups} $fq
+	kraken2 --threads $task.cpus --db ${params.remove_host_kraken2_db} ${out_options} --output kraken_read_report.txt --report kraken_report.txt --report-minimizer-data --gzip-compressed --minimum-hit-groups ${params.kraken2_min_hit_groups} $fq
 
 	gzip -c ${sample}_1.fastq > no_host/${sample}/${sample}_R1.fastq.gz
 	${move_r2}
