@@ -14,7 +14,7 @@ process qc_preprocess {
 	tuple val("${sample}"), path("${sample}/${sample}.qc_U.fastq.gz"), optional: true, emit: qc_reads_s
 
 	script:
-	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45 ref=${params.adapters} ktrim=r k=23 mink=11 hdist=1 tpe tbo"
+	//def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45 ref=${params.adapters} ktrim=r k=23 mink=11 hdist=1 tpe tbo"
 
 
 	if (reads.size() == 2) {
@@ -22,14 +22,14 @@ process qc_preprocess {
 		maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
 		mkdir -p ${sample}
 
-		bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} in=${sample}_R1.fastq.gz in2=${sample}_R2.fastq.gz out=${sample}/${sample}.qc_R1.fastq.gz out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_O.fastq.gz
+		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz in2=${sample}_R2.fastq.gz out=${sample}/${sample}.qc_R1.fastq.gz out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_O.fastq.gz
 		"""
 	} else {
 		"""
 		maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
 		mkdir -p ${sample}
 
-		bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} in=${sample}_R1.fastq.gz out=${sample}/${sample}.qc_U.fastq.gz
+		bbduk.sh -Xmx\$maxmem t=$task.cpus ${params.qc_params} in=${sample}_R1.fastq.gz out=${sample}/${sample}.qc_U.fastq.gz
 		"""
 	}
 }
