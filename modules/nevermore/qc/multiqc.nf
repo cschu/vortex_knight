@@ -10,7 +10,7 @@ process multiqc {
     script:
     def send_report = (params.email) ? "echo . | mailx -s 'multiqc_report' -a multiqc_report.html ${params.email}" : ""
     """
-    multiqc -c ${params.multiqc_config} .
+    multiqc -c ${projectDir}/config/multiqc.config .
     ${send_report}
     """
 }
