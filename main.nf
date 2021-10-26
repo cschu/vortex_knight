@@ -2,6 +2,13 @@
 
 nextflow.enable.dsl=2
 
+include { bam2fq; fq2bam; prepare_fastqs } from "./modules/vknight/convert"
+include { nevermore_simple_preprocessing } from "./workflows/nevermore/nevermore2"
+include { bam_analysis; fastq_analysis; collate_data } from "./workflows/vknight/vknight"
+include { classify_sample } from "./modules/nevermore/functions"
+include { remove_host_kraken2 } from "./modules/nevermore/decon/kraken2"
+include { flagstats; count_reads } from "./modules/vknight/stats"
+
 
 if (!params.publish_mode) {
 	params.publish_mode = "symlink"
@@ -11,12 +18,10 @@ if (!params.output_dir) {
 	params.output_dir = "vknight_out"
 }
 
-output_dir = "${params.output_dir}"
-
-if (params.motus_database) {
-	motus_database = "-db ${params.motus_database}"
+if (params.motus_database != null) {
+	params.motus_database = "-db ${params.motus_database}"
 } else {
-	motus_database = ""
+	params.motus_database = ""
 }
 
 if (!params.motus2_min_length) {
@@ -45,164 +50,8 @@ def convert_fastq2bam = (run_pathseq || run_count_reads);
 
 def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
 
-def run_bam_analysis = run_pathseq //|| run_count_reads
+def run_bam_analysis = run_pathseq
 def run_fastq_analysis = run_kraken2 || run_mtags || run_mapseq || run_motus2
-
-include { nevermore_preprocess } from "./workflows/nevermore/nevermore"
-include { bam_analysis; fastq_analysis; collate_data } from "./workflows/vknight/vknight"
-
-
-process bam2fq {
-	publishDir "$output_dir", mode: params.publish_mode
-
-	input:
-	tuple val(sample), path(bam)
-
-	output:
-	stdout
-	tuple val(sample), path("fastq/${sample}/${sample}*.fastq.gz"), emit: reads
-
-	script:
-	"""
-	set -o pipefail
-	mkdir -p fastq/${sample}
-	samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 -0 ${sample}_other.fastq.gz -1 ${sample}_R1.fastq.gz -2 ${sample}_R2.fastq.gz
-
-	if [[ "\$?" -eq 0 ]];
-	then
-
-		if [[ -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
-		then
-			if [[ ! -z "\$(gzip -dc ${sample}_other.fastq.gz | head -n 1)" ]];
-			then
-				mv -v ${sample}_other.fastq.gz fastq/${sample}/${sample}_R1.fastq.gz;
-			fi;
-		else
-				mv -v ${sample}_R1.fastq.gz fastq/${sample}/;
-				if [[ ! -z "\$(gzip -dc ${sample}_R2.fastq.gz | head -n 1)" ]];
-				then
-					mv -v ${sample}_R2.fastq.gz fastq/${sample}/;
-				fi;
-		fi;
-
-		ls -l *.fastq.gz
-		ls -l fastq/${sample}/*.fastq.gz
-		rm -rf *.fastq.gz
-	fi;
-	"""
-}
-
-
-process prepare_fastqs {
-	publishDir "$output_dir", mode: params.publish_mode
-
-	input:
-	tuple val(sample), path(fq)
-
-	output:
-	tuple val(sample), path("fastq/${sample}/${sample}_R*.fastq.gz"), emit: reads
-
-	script:
-	if (fq.size() == 2) {
-		"""
-		mkdir -p fastq/${sample}
-		ln -sf ../../${fq[0]} fastq/${sample}/${sample}_R1.fastq.gz
-		ln -sf ../../${fq[1]} fastq/${sample}/${sample}_R2.fastq.gz
-		"""
-	} else {
-		"""
-		mkdir -p fastq/${sample}
-		ln -sf ../../${fq[0]} fastq/${sample}/${sample}_R1.fastq.gz
-		"""
-	}
-}
-
-
-process fq2bam {
-	input:
-	tuple val(sample), path(fq)
-
-	output:
-	stdout
-	tuple val(sample), path("out/${sample}.bam"), emit: reads
-
-	script:
-	if (fq.size() == 2) {
-		"""
-		mkdir -p out
-		gatk FastqToSam -F1 ${fq[0]} -F2 ${fq[1]} -O out/${sample}.bam -SM $sample
-		"""
-	} else {
-		"""
-		mkdir -p out
-		gatk FastqToSam -F1 ${fq[0]} -O out/${sample}.bam -SM $sample
-		"""
-	}
-}
-
-
-process remove_host_kraken2 {
-	publishDir "$output_dir", mode: params.publish_mode
-
-	input:
-	tuple val(sample), path(fq)
-
-	output:
-	tuple val(sample), path("no_host/${sample}/${sample}_R*.fastq.gz"), emit: reads
-
-	script:
-	def out_options = (fq.size() == 2) ? "--paired --unclassified-out ${sample}#.fastq" : "--unclassified-out ${sample}_1.fastq"
-	def move_r2 = (fq.size() == 2) ? "gzip -c ${sample}_2.fastq > no_host/${sample}/${sample}_R2.fastq.gz" : ""
-
-	"""
-	mkdir -p no_host/${sample}
-	kraken2 --threads $task.cpus --db ${params.remove_host_kraken2_db} ${out_options} --output kraken_read_report.txt --report kraken_report.txt --report-minimizer-data --gzip-compressed --minimum-hit-groups ${params.kraken2_min_hit_groups} $fq
-
-	gzip -c ${sample}_1.fastq > no_host/${sample}/${sample}_R1.fastq.gz
-	${move_r2}
-	"""
-}
-
-
-process flagstats {
-    publishDir "$output_dir", mode: params.publish_mode
-
-    input:
-    tuple val(sample), path(bam)
-
-    output:
-    tuple val(sample), path("${sample}/${sample}.flagstats.txt"), emit: flagstats
-
-    script:
-    """
-    mkdir -p ${sample}
-    samtools flagstat $bam > "${sample}/${sample}.flagstats.txt"
-    """
-}
-
-
-process count_reads {
-    publishDir "$output_dir", mode: params.publish_mode
-
-    input:
-    //tuple val(sample), path(bam)
-    tuple val(sample), path(flagstats)
-
-    output:
-    tuple val(sample), path("${sample}/${sample}.libsize.txt"), emit: counts
-    tuple val(sample), path("${sample}/${sample}.is_paired.txt"), emit: is_paired
-    //tuple val(sample), path("${sample}/${sample}.flagstats.txt"), emit: flagstats
-
-    script:
-    """
-    mkdir -p ${sample}
-    head -n 1 "${flagstats[0]}" | awk '{print \$1 + \$3}' > "${sample}/${sample}.libsize.txt"
-    grep -m 1 "paired in sequencing" "${flagstats[0]}" | awk '{npaired = \$1 + \$3; if (npaired==0) {print "unpaired"} else {print "paired"};}' > "${sample}/${sample}.is_paired.txt"
-    """
-    //samtools flagstat $bam > "${sample}/${sample}.flagstats.txt"
-    //head -n 1 "${sample}/${sample}.flagstats.txt" | awk '{print \$1 + \$3}' > "${sample}/${sample}.libsize.txt"
-    //grep -m 1 "paired in sequencing" "${sample}/${sample}.flagstats.txt" | awk '{npaired = \$1 + \$3; if (npaired==0) {print "unpaired"} else {print "paired"};}' > "${sample}/${sample}.is_paired.txt"
-}
 
 
 workflow {
@@ -215,6 +64,7 @@ workflow {
 				return tuple(sample, file)
 		}
 		.groupTuple(sort: true)
+        .map { classify_sample(it[0], it[1]) }
 
 	bam_ch = Channel
 		.fromPath(params.input_dir + "/" + "**.bam")
@@ -223,6 +73,7 @@ workflow {
 			return tuple(sample, file)
 		}
 		.groupTuple(sort: true)
+        .map { classify_sample(it[0], it[1]) }
 
 	bam2fq(bam_ch)
 
@@ -232,18 +83,18 @@ workflow {
 
 		raw_fastq_ch = prepare_fastqs.out.reads.concat(bam2fq.out.reads)
 
-		nevermore_preprocess(raw_fastq_ch)
+		nevermore_simple_preprocessing(raw_fastq_ch)
 
 
 		if (params.remove_host) {
 
-			remove_host_kraken2(nevermore_preprocess.out.preprocessed)
+			remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out)
 
 			preprocessed_ch = remove_host_kraken2.out.reads
 
 		} else {
 
-			preprocessed_ch = nevermore_preprocess.out.preprocessed
+			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
 
 		}
 
