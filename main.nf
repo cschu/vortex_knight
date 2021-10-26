@@ -3,7 +3,7 @@
 nextflow.enable.dsl=2
 
 include { bam2fq; fq2bam; prepare_fastqs } from "./modules/vknight/convert"
-include { nevermore_simple_preprocessing } from "./workflows/nevermore/nevermore2"
+include { nevermore_simple_preprocessing } from "./workflows/nevermore/nevermore"
 include { bam_analysis; fastq_analysis; collate_data } from "./workflows/vknight/vknight"
 include { classify_sample } from "./modules/nevermore/functions"
 include { remove_host_kraken2 } from "./modules/nevermore/decon/kraken2"
