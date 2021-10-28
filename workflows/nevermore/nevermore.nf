@@ -38,10 +38,11 @@ workflow nevermore_simple_preprocessing {
 		fastqc(fastq_ch)
 
         multiqc(
-            fastqc.out.reports.map { sample, report -> report }.collect()
+            fastqc.out.reports.map { sample, report -> report }.collect(),
+			"${projectDir}/config/multiqc.config"
         )
 
-		qc_bbduk(fastq_ch)
+		qc_bbduk(fastq_ch, "${projectDir}/assets/adapters.fa")
 
 	emit:
 

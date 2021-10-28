@@ -4,6 +4,7 @@ process qc_bbduk {
 
     input:
     tuple val(sample), path(reads)
+	path(adapters)
 
     output:
     tuple val(sample), path("${sample.id}/${sample.id}_R*.fastq.gz"), emit: reads
@@ -17,6 +18,6 @@ process qc_bbduk {
 
     """
     mkdir -p ${sample.id}
-    bbduk.sh -Xmx${maxmem} t=${task.cpus} ${params.qc_params} stats=${sample.id}/${sample.id}.bbduk_stats.txt ${read1} ${read2}
+    bbduk.sh -Xmx${maxmem} t=${task.cpus} ${params.qc_params} ref=${adapters} stats=${sample.id}/${sample.id}.bbduk_stats.txt ${read1} ${read2}
     """
 }

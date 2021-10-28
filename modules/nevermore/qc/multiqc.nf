@@ -3,6 +3,7 @@ process multiqc {
 
     input:
     path(reports)
+	path(multiqc_config)
 
     output:
     path("multiqc_report.html")
@@ -10,7 +11,7 @@ process multiqc {
     script:
     def send_report = (params.email) ? "echo . | mailx -s 'multiqc_report' -a multiqc_report.html ${params.email}" : ""
     """
-    multiqc -c ${projectDir}/config/multiqc.config .
+    multiqc -c ${multiqc_config} .
     ${send_report}
     """
 }
