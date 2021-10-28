@@ -3,6 +3,7 @@ process kraken2 {
 
     input:
     tuple val(sample), path(reads)
+	path(kraken_db)
 
     output:
     tuple val(sample), path("${sample.id}/${sample.id}.kraken2_report.txt"), emit: kraken2_out
@@ -11,6 +12,6 @@ process kraken2 {
     def is_paired = (sample.is_paired) ? "--paired" : "";
     """
     mkdir -p ${sample.id}
-    kraken2 --db ${params.kraken_database} --threads $task.cpus --gzip-compressed --report ${sample.id}/${sample.id}.kraken2_report.txt ${is_paired} \$(ls $reads)
+    kraken2 --db ${kraken_db} --threads $task.cpus --gzip-compressed --report ${sample.id}/${sample.id}.kraken2_report.txt ${is_paired} \$(ls $reads)
     """
 }

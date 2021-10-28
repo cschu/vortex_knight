@@ -3,6 +3,7 @@ process pathseq {
 
     input:
     tuple val(sample), path(bam)
+	path(pathseq_db)
 
     output:
     tuple val(sample), path("${sample.id}/${sample.id}.pathseq.score*"), emit: scores
@@ -14,12 +15,12 @@ process pathseq {
     maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
     gatk --java-options \"-Xmx\$maxmem\" PathSeqPipelineSpark \\
         --input $bam \\
-        --filter-bwa-image ${params.pathseq_database}/reference.fasta.img \\
-        --kmer-file ${params.pathseq_database}/host.hss \\
+        --filter-bwa-image ${pathseq_db}/reference.fasta.img \\
+        --kmer-file ${pathseq_db}/host.hss \\
         --min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
-        --microbe-fasta ${params.pathseq_database}/microbe.fasta \\
-        --microbe-bwa-image ${params.pathseq_database}/microbe.fasta.img \\
-        --taxonomy-file ${params.pathseq_database}/microbe.db \\
+        --microbe-fasta ${pathseq_db}/microbe.fasta \\
+        --microbe-bwa-image ${pathseq_db}/microbe.fasta.img \\
+        --taxonomy-file ${pathseq_db}/microbe.db \\
         --output ${sample.id}/${sample.id}.pathseq.bam \\
         --scores-output ${sample.id}/${sample.id}.pathseq.scores \\
         --score-metrics ${sample.id}/${sample.id}.pathseq.score_metrics

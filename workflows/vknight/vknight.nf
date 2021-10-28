@@ -91,7 +91,7 @@ workflow bam_analysis {
 	main:
 		out_ch = Channel.empty()
     	if (run_pathseq) {
-        	pathseq(bam_ch)
+			pathseq(bam_ch, params.pathseq_database)
 			out_ch = out_ch.concat(pathseq.out.scores)
     	}
 
@@ -111,10 +111,10 @@ workflow fastq_analysis {
 		out_ch = Channel.empty()
 
 		if (run_kraken2) {
-			kraken2(fastq_ch)
+			kraken2(fastq_ch, params.kraken_database)
 			out_ch = out_ch.concat(kraken2.out.kraken2_out)
 		}
-	
+
 		if (run_motus2) {
 			motus2(fastq_ch, params.motus_database)
 			out_ch = out_ch.concat(motus2.out.motus_out)

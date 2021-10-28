@@ -3,6 +3,7 @@ process remove_host_kraken2 {
 
     input:
     tuple val(sample), path(fq)
+	path(kraken_db)
 
     output:
     tuple val(sample), path("no_host/${sample.id}/${sample.id}_R*.fastq.gz"), emit: reads
@@ -13,7 +14,7 @@ process remove_host_kraken2 {
 
     """
     mkdir -p no_host/${sample.id}
-    kraken2 --threads $task.cpus --db ${params.remove_host_kraken2_db} ${out_options} --output kraken_read_report.txt --report kraken_report.txt --report-minimizer-data --gzip-compressed --minimum-hit-groups ${params.kraken2_min_hit_groups} $fq
+    kraken2 --threads $task.cpus --db ${kraken_db} ${out_options} --output kraken_read_report.txt --report kraken_report.txt --report-minimizer-data --gzip-compressed --minimum-hit-groups ${params.kraken2_min_hit_groups} $fq
 
     gzip -c ${sample.id}_1.fastq > no_host/${sample.id}/${sample.id}_R1.fastq.gz
     ${move_r2}

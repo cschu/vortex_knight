@@ -88,7 +88,7 @@ workflow {
 
 		if (params.remove_host) {
 
-			remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out)
+			remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
 
 			preprocessed_ch = remove_host_kraken2.out.reads
 
