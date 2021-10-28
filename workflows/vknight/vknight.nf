@@ -19,11 +19,11 @@ if (!params.output_dir) {
 
 output_dir = "${params.output_dir}"
 
-if (params.motus_database) {
+/*if (params.motus_database) {
 	motus_database = "-db ${params.motus_database}"
 } else {
 	motus_database = ""
-}
+}*/
 
 if (!params.motus2_min_length) {
 	params.motus2_min_length = 30
@@ -116,7 +116,7 @@ workflow fastq_analysis {
 		}
 	
 		if (run_motus2) {
-			motus2(fastq_ch)
+			motus2(fastq_ch, params.motus_database)
 			out_ch = out_ch.concat(motus2.out.motus_out)
 		}
 
