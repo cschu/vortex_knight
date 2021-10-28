@@ -12,6 +12,6 @@ process kraken2 {
     def is_paired = (sample.is_paired) ? "--paired" : "";
     """
     mkdir -p ${sample.id}
-    kraken2 --db ${kraken_db} --threads $task.cpus --gzip-compressed --report ${sample.id}/${sample.id}.kraken2_report.txt ${is_paired} \$(ls $reads)
+    kraken2 --db ${kraken_db} --threads $task.cpus --minimum-hit-groups {params.kraken2_min_hit_groups} --gzip-compressed --report ${sample.id}/${sample.id}.kraken2_report.txt ${is_paired} \$(ls $reads)
     """
 }
