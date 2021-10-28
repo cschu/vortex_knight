@@ -7,7 +7,7 @@ process qc_bbduk {
 
     output:
     tuple val(sample), path("${sample.id}/${sample.id}_R*.fastq.gz"), emit: reads
-    tuple val(sample), path("${sample.id}/${sample}_O.fastq.gz"), emit: orphans, optional: true
+    tuple val(sample), path("${sample.id}/${sample.id}_O.fastq.gz"), emit: orphans, optional: true
     path("${sample.id}/${sample.id}.bbduk_stats.txt")
 
     script:
