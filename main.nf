@@ -10,36 +10,6 @@ include { remove_host_kraken2 } from "./modules/nevermore/decon/kraken2"
 include { flagstats; count_reads } from "./modules/vknight/stats"
 
 
-if (!params.publish_mode) {
-	params.publish_mode = "symlink"
-}
-
-if (!params.output_dir) {
-	params.output_dir = "vknight_out"
-}
-
-if (params.motus_database != null) {
-	params.motus_database = "-db ${params.motus_database}"
-} else {
-	params.motus_database = ""
-}
-
-if (!params.motus2_min_length) {
-	params.motus2_min_length = 30
-}
-
-if (!params.motus2_n_marker_genes) {
-	params.motus2_n_marker_genes = 1
-}
-
-if (!params.pathseq_min_clipped_read_length) {
-	params.pathseq_min_clipped_read_length = 31
-}
-
-if (!params.kraken2_min_hit_groups) {
-	params.kraken2_min_hit_groups = 10
-}
-
 def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2);
 def run_mtags = (!params.skip_mtags || params.run_mtags);
 def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && params.mapseq_bin)
