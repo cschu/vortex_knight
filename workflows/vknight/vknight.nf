@@ -144,6 +144,24 @@ workflow fastq_analysis {
 }
 
 
+workflow amplicon_analysis {
+	take:
+		fastq_ch
+
+	main:
+		out_ch = Channel.empty()
+
+		mtags_extract(fastq_ch)
+
+		mapseq(mtags_extract.out.mtags_out)
+
+		collate_mapseq_tables(mapseq.out.bac_ssu.collect())
+
+	emit:
+		results = out_ch
+}
+
+
 workflow {
 
 	/* perform fastq-based analyses */
