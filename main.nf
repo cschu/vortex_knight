@@ -22,6 +22,7 @@ def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
 
 def run_bam_analysis = run_pathseq && !params.amplicon_seq
 def run_fastq_analysis = (run_kraken2 || run_mtags || run_mapseq || run_motus2) && !params.amplicon_seq
+def run_amplicon_analysis = params.amplicon_seq
 
 
 workflow {
@@ -98,11 +99,12 @@ workflow {
 
 	if (run_fastq_analysis) {
 
+		preprocessed_ch.view()
 		fastq_analysis(preprocessed_ch)
 
 	}
 
-	if (params.amplicon_seq) {
+	if (run_amplicon_analysis) {
 
 		amplicon_analysis(preprocessed_ch)
 

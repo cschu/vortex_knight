@@ -157,6 +157,9 @@ workflow amplicon_analysis {
 
 		collate_mapseq_tables(mapseq.out.bac_ssu.collect())
 
+		out_ch = out_ch.concat(collate_mapseq_tables.out.ssu_tables)
+
+
 	emit:
 		results = out_ch
 }
