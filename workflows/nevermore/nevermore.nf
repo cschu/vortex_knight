@@ -2,7 +2,8 @@
 
 nextflow.enable.dsl=2
 
-include { qc_bbduk; qc_bbduk_amplicon } from "../../modules/nevermore/qc/bbduk"
+include { qc_bbduk } from "../../modules/nevermore/qc/bbduk"
+include { qc_bbduk_stepwise_amplicon } from "../../modules/nevermore/qc/bbduk_amplicon"
 include { qc_bbmerge } from "../../modules/nevermore/qc/bbmerge"
 include { fastqc } from "../../modules/nevermore/qc/fastqc"
 include { multiqc } from "../../modules/nevermore/qc/multiqc"
@@ -47,9 +48,9 @@ workflow nevermore_simple_preprocessing {
 
 		if (params.amplicon_seq) {
 
-			qc_bbduk_amplicon(fastq_ch, "${projectDir}/assets/adapters.fa")
-			processed_reads_ch = processed_reads_ch.concat(qc_bbduk_amplicon.out.reads)
-			orphans_ch = orphans_ch.concat(qc_bbduk_amplicon.out.orphans)
+			qc_bbduk_stepwise_amplicon(fastq_ch, "${projectDir}/assets/adapters.fa")
+			processed_reads_ch = processed_reads_ch.concat(qc_bbduk_stepwise_amplicon.out.reads)
+			orphans_ch = orphans_ch.concat(qc_bbduk_stepwise_amplicon.out.orphans)
 
 		} else {
 
