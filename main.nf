@@ -2,256 +2,69 @@
 
 nextflow.enable.dsl=2
 
-if (!params.file_pattern) {
-	params.file_pattern = "**[12].fastq.gz"
-}
+include { nevermore_simple_preprocessing } from "./workflows/nevermore/nevermore"
+include { classify_sample } from "./modules/nevermore/functions"
+include { remove_host_kraken2 } from "./modules/nevermore/decon/kraken2"
+include { prepare_fastqs } from "./modules/nevermore/convert"
 
-if (!params.single_file_pattern) {
-	params.single_file_pattern = "**singles.fastq.gz"
-}
-
-if (!params.file_suffix) {
-	params.file_suffix = ".fastq.gz"
-}
-
-if (!params.preprocessed_singles) {
-	run_singles = false
-} else {
-	run_singles = true
-}
-
-if (!params.publish_mode) {
-	params.publish_mode = "link"
-}
-
-if (!params.output_dir) {
-	params.output_dir = "nevermore_out"
-}
-
-output_dir = "${params.output_dir}"
-
-suffix_pattern = params.file_suffix
+def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
 
 
-process qc_preprocess {
-	conda "bioconda::bbmap"
+process bwa_mem_align {
+	label 'align'
 
 	input:
 	tuple val(sample), path(reads)
+	path(reference)
 
 	output:
-	stdout
-	val "${sample}", emit: sample_id
-	path "${sample}/${sample}.qc_R1.fastq.gz", emit: r1_fq
-    path "${sample}/${sample}.qc_R2.fastq.gz", optional: true, emit: r2_fq
-	path "${sample}/${sample}.qc_S1.fastq.gz", optional: true, emit: u_fq
+	tuple val(sample), path("${sample.id}.bam"), emit: bam
 
 	script:
-	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
-	def r1_index = reads[0].name.endsWith("1${suffix_pattern}") ? 0 : 1
-	def r1 = "in=" + reads[r1_index] + " out=${sample}/${sample}.qc_R1.fastq.gz"
-	def r2 = (reads[1] && file(reads[1])) ? "in2=" + ( reads[ r1_index == 0 ? 1 : 0 ] + " out2=${sample}/${sample}.qc_R2.fastq.gz outs=${sample}/${sample}.qc_S1.fastq.gz" ) : ""
+	def align_cpus = 4 // figure out the groovy division garbage later (task.cpus >= 8) ?
+	def sort_cpus = 4
+	def reads2 = (sample.is_paired) ? "${sample.id}_R2.fastq.gz" : ""
 
 	"""
-	maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
-	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} ${r1} ${r2}
-	"""
-}
-
-process qc_preprocess_singles {
-	conda "bioconda::bbmap"
-
-	input:
-	tuple val(sample), path(reads)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.qc_U.fastq.gz", emit: u_fq
-
-	script:
-	def qc_params = "qtrim=rl trimq=25 maq=25 minlen=45"
-
-	"""
-	maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
-	bbduk.sh -Xmx\$maxmem t=$task.cpus ${qc_params} in=${reads[0]} out=${sample}/${sample}.qc_U.fastq.gz
-	"""
-}
-
-process merge_singles {
-
-	input:
-	val(sample)
-	path(reads)
-	path(singles)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-    path "${sample}/${sample}.qc_U.fastq.gz", emit: u_fq
-
-	script:
-	"""
-	mkdir -p $sample
-	cat ${reads} ${singles} > ${sample}/${sample}.qc_U.fastq.gz
+	bwa mem -a -t ${align_cpus} \$(readlink ${reference}) ${sample.id}_R1.fastq.gz ${reads2} | samtools view -F 4 -buSh - | samtools sort -@ ${sort_cpus} -o ${sample.id}.bam
 	"""
 
-}
-
-process decontaminate {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-
-	input:
-	val(sample)
-	path(reads1)
-	path(reads2)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.no_human_R1.fastq.gz", emit: r1_fq
-	path "${sample}/${sample}.no_human_R2.fastq.gz", optional: true, emit: r2_fq
-
-	script:
-	def r1 = reads1
-	def r2 = file(reads2) ? reads2 : ""
-
-	def r1_out = "-1 ${sample}/${sample}.no_human_R1.fastq.gz"
-	def r2_out = file(reads2) ? "-2 ${sample}/${sample}.no_human_R2.fastq.gz" : ""
-
-	"""
-	cpus=\$(expr \"$task.cpus\" - 4)
-	mkdir -p $sample
-	bwa mem -t \$cpus ${params.human_ref} ${r1} ${r2} | samtools collate --threads 2 -f -O - | samtools fastq -@ 2 -f 4 ${r1_out} ${r2_out} -s singletons.fastq.gz -
-	"""
-}
-
-process decontaminate_singles {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-
-	input:
-	val(sample)
-	path(reads)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.no_human_U.fastq.gz", emit: u_fq
-
-	script:
-
-	"""
-	cpus=\$(expr \"$task.cpus\" - 4)
-	mkdir -p $sample
-	bwa mem -t \$cpus ${params.human_ref} ${reads} | samtools collate --threads 2 -f -O - | samtools fastq -@ 2 -f 4 -s ${sample}/${sample}.no_human_U.fastq.gz -
-	"""
-
-}
-
-process align {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-
-	input:
-	val(sample)
-	path(reads1)
-	path(reads2)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}.main.bam", emit: bam
-
-	script:
-	def r1 = reads1
-	def r2 =  file(reads2) ? reads2 : ""
-
-	"""
-	cpus=\$(expr \"$task.cpus\" - 4)
-	bwa mem -a -t \$cpus ${params.reference} ${r1} ${r2} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}.main.bam -
-	"""
-}
-
-process align_singles {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-
-	input:
-	val(sample)
-	path(reads)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}.main.singles.bam", emit: bam
-
-	script:
-
-	"""
-	cpus=\$(expr \"$task.cpus\" - 4)
-	bwa mem -a -t \$cpus ${params.reference} ${reads} | samtools view -F 4 -buSh - | samtools sort -@ 2 -o ${sample}.main.singles.bam -
-	"""
-}
-
-process rename_bam {
-	publishDir "$output_dir", mode: params.publish_mode
-
-	input:
-	val(sample)
-	path(bam)
-
-	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.bam", emit: bam
-
-	script:
-
-	"""
-	mkdir -p $sample
-	cp $bam ${sample}/${sample}.bam
-	"""
 }
 
 process merge_and_sort {
-	conda "bioconda::bwa bioconda::'samtools>=1.11'"
-	publishDir "$output_dir", mode: params.publish_mode
+	label 'samtools'
+	publishDir params.output_dir, mode: params.publish_mode
 
 	input:
-	val(sample)
-	path(main_bam)
-	path(singles_bam)
+	tuple val(sample), path(bamfiles)
 
 	output:
-	stdout
-	val "$sample", emit: sample_id
-	path "${sample}/${sample}.bam", emit: bam
+	tuple val(sample), path("bam/${sample}.bam"), emit: bam
 
 	script:
-	def s_bam = file(singles_bam) ? singles_bam : ""
-
-	if (file(singles_bam)) {
+	// need a better detection for this
+	if (bamfiles instanceof Collection && bamfiles.size() >= 2) {
 		"""
-		mkdir -p $sample
-		samtools merge -@ $task.cpus "${sample}/${sample}.bam" ${main_bam} ${s_bam}
+		mkdir -p bam/
+		samtools merge -@ $task.cpus bam/${sample}.bam ${bamfiles}
 		"""
 	} else {
+		// i don't like this solution
 		"""
-		mkdir -p $sample
-		cp ${main_bam} "${sample}/${sample}.bam"
+		mkdir -p bam
+		cp ${bamfiles[0]} bam/
 		"""
 	}
 }
 
 process gffquant {
-	conda params.gffquant_env
-	publishDir "$output_dir", mode: params.publish_mode
+	publishDir params.output_dir, mode: params.publish_mode
 
 	input:
-	val(sample)
-	path(bam)
+	tuple val(sample), path(bam)
+	path(annotation_db)
 
 	output:
-	stdout
-	val "$sample", emit: sample_id
 	path "${sample}/${sample}.seqname.uniq.txt", emit: uniq_seq
 	path "${sample}/${sample}.seqname.dist1.txt", emit: dist1_seq
 	path "${sample}/${sample}.feature_counts.txt", emit: feat_counts
@@ -262,12 +75,13 @@ process gffquant {
 
 	"""
 	mkdir -p ${sample}
-	gffquant ${params.gffquant_db} ${bam} -o ${sample}/${sample} -m ${params.gffquant_mode} --ambig_mode ${params.gffquant_amode}
+	gffquant ${annotation_db} ${bam} -o ${sample}/${sample} -m ${params.gffquant_mode} --ambig_mode ${params.gffquant_amode}
 	"""
 }
 
 
 
+/*
 workflow {
 	reads_ch = Channel
 	    .fromPath(params.input_dir + "/" + params.file_pattern)
@@ -313,4 +127,61 @@ workflow {
 		gffquant(merge_and_sort.out.sample_id, merge_and_sort.out.bam)
 	}
 
+}
+*/
+
+
+workflow {
+
+	fastq_ch = Channel
+		.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
+		.map { file ->
+				def sample = file.name.replaceAll(/.(fastq|fq)(.gz)?$/, "")
+				sample = sample.replaceAll(/_R?[12]$/, "")
+				return tuple(sample, file)
+		}
+		.groupTuple(sort: true)
+        .map { classify_sample(it[0], it[1]) }
+
+
+	if (do_preprocessing) {
+
+		prepare_fastqs(fastq_ch)
+
+		raw_fastq_ch = prepare_fastqs.out.reads
+
+		nevermore_simple_preprocessing(raw_fastq_ch)
+
+		preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+		if (!params.drop_orphans) {
+			preprocessed_ch = preprocessed_ch.concat(nevermore_simple_preprocessing.out.orphan_reads_out)
+		}
+
+		if (params.remove_host) {
+
+			remove_host_kraken2(preprocessed_ch, params.remove_host_kraken2_db)
+
+			preprocessed_ch = remove_host_kraken2.out.reads
+
+		}
+
+	} else {
+
+		preprocessed_ch = fastq_ch
+
+	}
+
+	bwa_mem_align(preprocessed_ch, params.reference)
+
+	aligned_ch = bwa_mem_align.out.bam
+		.map { sample, bam ->
+			sample_id = sample.id.replaceAll(/.orphans$/, "").replaceAll(/.singles$/, "")
+			return tuple(sample_id, bam)
+		}
+		.groupTuple(sort: true)
+
+	aligned_ch.view()
+
+	merge_and_sort(aligned_ch)
+	//gffquant(merge_and_sort.out.bam, params.gffquant_db)
 }
