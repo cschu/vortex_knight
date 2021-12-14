@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 include { nevermore_simple_preprocessing } from "./workflows/nevermore/nevermore"
 include { classify_sample } from "./modules/nevermore/functions"
-include { remove_host_kraken2 } from "./modules/nevermore/decon/kraken2"
+include { remove_host_kraken2_individual; remove_host_kraken2 } from "./modules/nevermore/decon/kraken2"
 include { prepare_fastqs } from "./modules/nevermore/convert"
 
 def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
@@ -52,7 +52,7 @@ process merge_and_sort {
 		// i don't like this solution
 		"""
 		mkdir -p bam
-		cp ${bamfiles[0]} bam/
+		ln -s ${bamfiles[0]} bam/${sample}.bam
 		"""
 	}
 }
@@ -159,9 +159,21 @@ workflow {
 
 		if (params.remove_host) {
 
-			remove_host_kraken2(preprocessed_ch, params.remove_host_kraken2_db)
+			// remove_host_kraken2(preprocessed_ch, params.remove_host_kraken2_db)
+			remove_host_kraken2_individual(preprocessed_ch, params.remove_host_kraken2_db)
 
-			preprocessed_ch = remove_host_kraken2.out.reads
+			// preprocessed_ch = remove_host_kraken2.out.reads
+			preprocessed_ch = remove_host_kraken2_individual.out.reads
+			if (!params.drop_chimeras) {
+				chimera_ch = remove_host_kraken2_individual.out.chimera_orphans
+					.map { sample, file ->
+						def meta = [:]
+						meta.is_paired = false
+						meta.id = sample.id + ".chimeras"
+						return tuple(meta, file)
+					}
+				preprocessed_ch = preprocessed_ch.concat(chimera_ch)
+			}
 
 		}
 
@@ -175,7 +187,7 @@ workflow {
 
 	aligned_ch = bwa_mem_align.out.bam
 		.map { sample, bam ->
-			sample_id = sample.id.replaceAll(/.orphans$/, "").replaceAll(/.singles$/, "")
+			sample_id = sample.id.replaceAll(/.(orphans|singles|chimeras)$/, "")
 			return tuple(sample_id, bam)
 		}
 		.groupTuple(sort: true)
