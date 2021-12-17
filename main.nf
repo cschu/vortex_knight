@@ -47,9 +47,10 @@ workflow {
 
 	bam2fq(bam_ch)
 
-	if (do_preprocessing) {
+	prepare_fastqs(fastq_ch)
 
-		prepare_fastqs(fastq_ch)
+
+	if (do_preprocessing) {
 
 		raw_fastq_ch = prepare_fastqs.out.reads.concat(bam2fq.out.reads)
 
@@ -70,7 +71,7 @@ workflow {
 
 	} else {
 
-		preprocessed_ch = fastq_ch
+		preprocessed_ch = prepare_fastqs.out.reads
 
 	}
 
