@@ -10,10 +10,10 @@ process pathseq {
     tuple val(sample), path("${sample.id}/${sample.id}.pathseq.bam*"), emit: bam
 
     script:
+    def maxmem = task.memory.toGiga()
     """
     mkdir -p ${sample.id}
-    maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
-    gatk --java-options \"-Xmx\$maxmem\" PathSeqPipelineSpark \\
+    gatk --java-options \"-Xmx${maxmem}g\" PathSeqPipelineSpark \\
         --input $bam \\
         --filter-bwa-image ${pathseq_db}/reference.fasta.img \\
         --kmer-file ${pathseq_db}/host.hss \\

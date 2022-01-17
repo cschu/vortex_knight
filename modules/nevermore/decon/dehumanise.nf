@@ -11,12 +11,12 @@ process dehumanise {
 
     script:
     def in_fq = (fq.size() == 2) ? "in=${fq[0]} in2=${fq[1]}" : "in=${fq[0]}";
+    def maxmem = task.memory.toGiga()
     """
     set -o pipefail
-    maxmem=\$(echo \"$task.memory\"| sed 's/ GB/g/g')
     mkdir -p no_human/${sample}
     ln -s ${params.decon_ref}
-    bbmap.sh -Xmx\$maxmem t=$task.cpus ${in_fq} outu=unmapped.sam outm=mapped.sam idfilter=${params.decon_minid}
+    bbmap.sh -Xmx${maxmem}g t=$task.cpus ${in_fq} outu=unmapped.sam outm=mapped.sam idfilter=${params.decon_minid}
     cp unmapped.sam full.sam
     samtools view mapped.sam >> full.sam
     samtools view -f 4 mapped.sam >> unmapped.sam
