@@ -12,7 +12,7 @@ process read_counter {
     def read_counter_input = (sample.is_paired) ? "-f ${sample.id}_R1.fastq.gz -r ${sample.id}_R2.fastq.gz" : "-s ${sample.id}_R1.fastq.gz";
     """
     mkdir -p ${sample.id}
-	read_counter map -t $task.cpus -db {marker_db} -l {params.read_counter_min_length} ${read_counter_input} > ${sample.id}/${sample.id}.read_counter.txt
+	read_counter map -t $task.cpus -v 6 -db \$(readlink ${marker_db}) -l ${params.read_counter_min_length} ${read_counter_input} > ${sample.id}/${sample.id}.read_counter.txt
     """
 }
 
