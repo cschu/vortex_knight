@@ -108,3 +108,4 @@ workflow {
 		fastq_analysis(preprocessed_ch)
 
 	}
+}
