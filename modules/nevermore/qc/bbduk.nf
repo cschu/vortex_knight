@@ -1,5 +1,5 @@
-
 process qc_bbduk {
+	label 'bbduk'
 	publishDir path: params.output_dir, mode: params.publish_mode //, pattern: "${sample.id}/${sample.id}.bbduk_stats.txt"
 
     input:
@@ -15,6 +15,9 @@ process qc_bbduk {
 	def maxmem = task.memory.toGiga()
     def read1 = "in1=${sample.id}_R1.fastq.gz out1=${sample.id}/${sample.id}_R1.fastq.gz"
     def read2 = sample.is_paired ? "in2=${sample.id}_R2.fastq.gz out2=${sample.id}/${sample.id}_R2.fastq.gz outs=${sample.id}/${sample.id}_O.fastq.gz" : ""
+
+	qc_params = params.qc_params_shotgun
+	trim_params = "ref=${adapters} minlen=${params.qc_minlen}"
 
     """
     mkdir -p ${sample.id}
