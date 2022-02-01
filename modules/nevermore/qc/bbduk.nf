@@ -1,6 +1,6 @@
 
 process qc_bbduk {
-	publishDir path: params.output_dir, mode: params.publish_mode, pattern: "${sample.id}/${sample.id}.bbduk_stats.txt"
+	publishDir path: params.output_dir, mode: params.publish_mode //, pattern: "${sample.id}/${sample.id}.bbduk_stats.txt"
 
     input:
     tuple val(sample), path(reads)
