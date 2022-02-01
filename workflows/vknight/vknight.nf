@@ -98,11 +98,15 @@ workflow fastq_analysis {
 				mapseq_ch = Channel.empty()
 
 				if (params.mapseq_db) {
+
 					mapseq_with_customdb(mtags_extract.out.mtags_out, params.mapseq_db)
 					mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect()
+
 				} else {
+
 					mapseq(mtags_extract.out.mtags_out)
 					mapseq_ch = mapseq.out.bac_ssu.collect
+
 				}
 	
 				collate_mapseq_tables(mapseq_ch)
@@ -124,10 +128,21 @@ workflow amplicon_analysis {
 
 		mtags_extract(fastq_ch)
 
-		mapseq(mtags_extract.out.mtags_out)
+		mapseq_ch = Channel.empty()
 
-		collate_mapseq_tables(mapseq.out.bac_ssu.collect())
+		if (params.mapseq_db) {
 
+			mapseq_with_customdb(mtags_extract.out.mtags_out, params.mapseq_db)
+			mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect() 
+
+		} else {
+
+			mapseq(mtags_extract.out.mtags_out)
+			mapseq_ch = mapseq.out.bac_ssu.collect() 
+
+		}
+
+		collate_mapseq_tables(mapseq_ch)
 		out_ch = out_ch.concat(collate_mapseq_tables.out.ssu_tables)
 
 
