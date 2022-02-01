@@ -21,6 +21,6 @@ process qc_bbduk {
 
     """
     mkdir -p ${sample.id}
-    bbduk.sh -Xmx${maxmem}g t=${task.cpus} ${params.qc_params} ref=${adapters} stats=${sample.id}/${sample.id}.bbduk_stats.txt ${read1} ${read2}
+    bbduk.sh -Xmx${maxmem}g t=${task.cpus} ${qc_params} ref=${adapters} stats=${sample.id}/${sample.id}.bbduk_stats.txt ${read1} ${read2}
     """
 }
