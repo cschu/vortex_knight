@@ -15,7 +15,7 @@ process flagstats {
 }
 
 
-process count_reads {
+process count_reads_flagstats {
     publishDir params.output_dir, mode: params.publish_mode
 
     input:

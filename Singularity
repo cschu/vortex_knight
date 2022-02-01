@@ -68,7 +68,7 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs
   mv mapseq-2.0.1alpha-linux mapseq
 
   ln -s /opt/software/mapseq/mapseq /usr/bin/
-  ln -s /opt/softwaremapseq/share /usr/bin/
+  ln -s /opt/software/mapseq/share /usr/bin/
 
   #  apt-get install -y build-essential wget subversion git libncurses5-dev libtool autotools-dev autoconf dh-autoreconf
   #  git clone https://github.com/jfmrod/MAPseq.git
