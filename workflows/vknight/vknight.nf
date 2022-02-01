@@ -5,7 +5,7 @@ nextflow.enable.dsl=2
 include { kraken2 } from  "../../modules/vknight/profilers/kraken2"
 include { mtags_extract; mtags_annotate; mtags_merge } from "../../modules/vknight/profilers/mtags"
 include { motus2 } from  "../../modules/vknight/profilers/motus2"
-include { mapseq; collate_mapseq_tables } from "../../modules/vknight/profilers/mapseq"
+include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../../modules/vknight/profilers/mapseq"
 include { pathseq } from "../../modules/vknight/profilers/pathseq"
 include { read_counter } from "../../modules/vknight/profilers/read_counter"
 
@@ -94,9 +94,19 @@ workflow fastq_analysis {
 			out_ch = out_ch.concat(mtags_merge.out.mtags_tables)
 
 			if (run_mapseq) {
-				mapseq(mtags_extract.out.mtags_out)
+
+				mapseq_ch = Channel.empty()
+
+				if (params.mapseq_db) {
+					mapseq_with_customdb(mtags_extract.out.mtags_out, params.mapseq_db)
+					mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect()
+				} else {
+					mapseq(mtags_extract.out.mtags_out)
+					mapseq_ch = mapseq.out.bac_ssu.collect
+				}
 	
-				collate_mapseq_tables(mapseq.out.bac_ssu.collect())
+				collate_mapseq_tables(mapseq_ch)
+				out_ch = out_ch.concat(collate_mapseq_tables.out.ssu_tables)
 			}
 		}
 
