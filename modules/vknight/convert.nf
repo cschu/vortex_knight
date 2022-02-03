@@ -37,6 +37,7 @@ process bam2fq {
     """
 }
 
+
 process fq2bam {
     input:
     tuple val(sample), path(fq)
@@ -45,18 +46,15 @@ process fq2bam {
     tuple val(sample), path("out/${sample.id}.bam"), emit: reads
 
     script:
-    if (sample.is_paired) {
-        """
-        mkdir -p out
-        gatk FastqToSam -F1 ${fq[0]} -F2 ${fq[1]} -O out/${sample.id}.bam -SM ${sample.id}
-        """
-    } else {
-        """
-        mkdir -p out
-        gatk FastqToSam -F1 ${fq[0]} -O out/${sample.id}.bam -SM ${sample.id}
-        """
-    }
+	def maxmem = task.memory.toGiga()
+	def r2 = (sample.is_paired) ? "in2=${sample.id}_R2.fastq.gz" : ""
+
+	"""
+	mkdir -p out/
+	reformat.sh -Xmx${maxmem}g in=${sample.id}_R1.fastq.gz ${r2} out=stdout.bam | samtools addreplacerg -r "ID:${sample.id}.rg" -r "SM:${sample.id}" --no-PG -o out/${sample.id}.bam -
+	"""
 }
+
 
 process prepare_fastqs {
     publishDir params.output_dir, mode: params.publish_mode
