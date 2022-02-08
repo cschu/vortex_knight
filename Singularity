@@ -62,10 +62,14 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs
 
   # MAPseq installation
   cd /opt/software
-  wget -q https://github.com/jfmrod/MAPseq/releases/download/2.0.1alpha/mapseq-2.0.1alpha-linux.tar.gz
-  tar xzf mapseq-2.0.1alpha-linux.tar.gz
-  rm mapseq-2.0.1alpha-linux.tar.gz
-  mv mapseq-2.0.1alpha-linux mapseq
+  wget -q https://github.com/jfmrod/MAPseq/releases/download/v1.2.6/mapseq-1.2.6-linux.tar.gz
+  tar xzf mapseq-1.2.6-linux.tar.gz
+  rm mapseq-1.2.6-linux.tar.gz
+  mv mapseq-1.2.6-linux mapseq
+  #  wget -q https://github.com/jfmrod/MAPseq/releases/download/2.0.1alpha/mapseq-2.0.1alpha-linux.tar.gz
+  # tar xzf mapseq-2.0.1alpha-linux.tar.gz
+  # rm mapseq-2.0.1alpha-linux.tar.gz
+  # mv mapseq-2.0.1alpha-linux mapseq
 
   ln -s /opt/software/mapseq/mapseq /usr/bin/
   ln -s /opt/software/mapseq/share /usr/bin/
