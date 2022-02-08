@@ -30,17 +30,17 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs
 
   #/opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda 'samtools>=1.13' bwa kraken2 fastqc multiqc bbmap 'motus==2.6.0'
 
-  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda hmmer 'samtools>=1.13' bwa kraken2 'gatk4==4.1.6.0-0' fastqc multiqc bbmap
+  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda hmmer 'samtools>=1.13' bwa kraken2 'gatk4==4.1.6.0-0' fastqc multiqc bbmap 'motus>=2.6.0'
 
   # mOTUs installation
   # bwa and samtools via conda 
 
-  cd /opt/software
-  git clone https://github.com/motu-tool/mOTUs.git
-  cd mOTUs
-  mkdir -p db_mOTU/
-  touch db_mOTU/db_mOTU_versions
-  python3 setup.py
+  #cd /opt/software
+  #git clone https://github.com/motu-tool/mOTUs.git
+  #cd mOTUs
+  #mkdir -p db_mOTU/
+  #touch db_mOTU/db_mOTU_versions
+  #python3 setup.py
 
   # mTAGs installation
   # hmmer via conda
