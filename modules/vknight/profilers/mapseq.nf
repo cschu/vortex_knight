@@ -9,7 +9,7 @@ process mapseq {
     path("${sample.id}/${sample.id}_R*bac_ssu.mseq"), emit: bac_ssu
 
     script:
-	def r2_cmd = (sample.is_paired) ? "${params.mapseq_bin} ${sample.id}_R2.fastq.gz_bac_ssu.fasta > ${sample.id}/${sample.id}_R2_bac_ssu.mseq" : ""
+	def r2_cmd = (sample.is_paired) ? "${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R2.fastq.gz_bac_ssu.fasta > ${sample.id}/${sample.id}_R2_bac_ssu.mseq" : ""
 
 	"""
     mkdir -p ${sample.id}
