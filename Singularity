@@ -8,7 +8,7 @@ IncludeCmd: yes
 #R_CONFIG_DIR=/etc/R/
 #export R_CONFIG_DIR
 export LC_ALL=C
-export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software/read_counter
+export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs
 
 %post
   apt-get update
@@ -30,11 +30,7 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
 
   #/opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda 'samtools>=1.13' bwa kraken2 fastqc multiqc bbmap 'motus==2.6.0'
 
-  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda hmmer 'samtools>=1.13' bwa kraken2 'gatk4==4.1.6.0-0' fastqc multiqc bbmap seqtk
-
-  # read_counter installation
-  cd /opt/software
-  git clone https://github.com/AlessioMilanese/read_counter.git
+  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda hmmer 'samtools>=1.13' bwa kraken2 'gatk4==4.1.6.0-0' fastqc multiqc bbmap
 
   # mOTUs installation
   # bwa and samtools via conda 
@@ -66,10 +62,14 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
 
   # MAPseq installation
   cd /opt/software
-  wget -q https://github.com/jfmrod/MAPseq/releases/download/2.0.1alpha/mapseq-2.0.1alpha-linux.tar.gz
-  tar xzf mapseq-2.0.1alpha-linux.tar.gz
-  rm mapseq-2.0.1alpha-linux.tar.gz
-  mv mapseq-2.0.1alpha-linux mapseq
+  wget -q https://github.com/jfmrod/MAPseq/releases/download/v1.2.6/mapseq-1.2.6-linux.tar.gz
+  tar xzf mapseq-1.2.6-linux.tar.gz
+  rm mapseq-1.2.6-linux.tar.gz
+  mv mapseq-1.2.6-linux mapseq
+  #  wget -q https://github.com/jfmrod/MAPseq/releases/download/2.0.1alpha/mapseq-2.0.1alpha-linux.tar.gz
+  # tar xzf mapseq-2.0.1alpha-linux.tar.gz
+  # rm mapseq-2.0.1alpha-linux.tar.gz
+  # mv mapseq-2.0.1alpha-linux mapseq
 
   ln -s /opt/software/mapseq/mapseq /usr/bin/
   ln -s /opt/software/mapseq/share /usr/bin/
