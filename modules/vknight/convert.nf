@@ -51,7 +51,7 @@ process fq2bam {
 
 	"""
 	mkdir -p out/
-	reformat.sh -Xmx${maxmem}g in=${sample.id}_R1.fastq.gz ${r2} out=stdout.bam | samtools addreplacerg -r "ID:A" -r "SM:sample" -o out/${sample.id}.bam -
+	reformat.sh -Xmx${maxmem}g in=${sample.id}_R1.fastq.gz ${r2} trimreaddescription=t out=stdout.bam | samtools addreplacerg -r "ID:A" -r "SM:${sample.id}" -o out/${sample.id}.bam -
 	"""
 }
 
