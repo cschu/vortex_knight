@@ -91,8 +91,6 @@ workflow nevermore_preprocessing {
 		singlelib_reads_ch = qc_bbduk.out.reads
 			.filter { it[1].size() != 2 }
 
-		paired_reads_ch.view()
-
 		/* merge_pairs implies that we want to keep the merged reads, which are 'longer single-ends' */
 
 		if (merge_pairs) {
@@ -149,34 +147,4 @@ workflow nevermore_preprocessing {
 	emit:
 		paired_reads = paired_out_ch
 		single_reads = single_out_ch
-}
-
-
-workflow {
-
-    fastq_ch = Channel
-        .fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
-        .map { file ->
-                def sample = file.name.replaceAll(/.(fastq|fq)(.gz)?$/, "")
-                sample = sample.replaceAll(/_R?[12]$/, "")
-                return tuple(sample, file)
-        }
-        .groupTuple(sort: true)
-		.map { classify_sample(it[0], it[1]) }
-
-	//fastq_ch.view()
-
-	qc_bbduk(fastq_ch)
-
-	qc_reads_ch = qc_bbduk.out.reads
-		.map { classify_sample(it[0], it[1] ) }
-
-	qc_reads_ch.view()
-
-
-	//nevermore_preprocessing(fastq_ch)
-
-	//nevermore_preprocessing.out.paired_reads.view()
-	//nevermore_preprocessing.out.single_reads.view()
-
 }

@@ -105,7 +105,6 @@ workflow {
 
 	if (run_fastq_analysis) {
 
-		preprocessed_ch.view()
 		fastq_analysis(preprocessed_ch)
 
 	}
