@@ -39,6 +39,8 @@ process remove_host_kraken2_individual {
 
 	if (sample.is_paired) {
 		"""
+		set -o pipefail
+
 		mkdir -p no_host/${sample.id}
 		mkdir -p ${sample.id}
 
