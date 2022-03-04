@@ -15,8 +15,8 @@ def keep_orphans = (params.keep_orphans || false)
 def asset_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/assets" : "${projectDir}/nevermore/assets"
 def config_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/config" : "${projectDir}/nevermore/config"
 
-asset_dir.view()
-config_dir.view()
+print asset_dir
+print config_dir
 
 process concat_singles {
     input:
