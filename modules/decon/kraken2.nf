@@ -44,10 +44,13 @@ process remove_host_kraken2_individual {
 		mkdir -p no_host/${sample.id}
 		mkdir -p ${sample.id}
 
+		mkdir -p tmp/
+
 		${kraken2_call} --unclassified-out ${sample.id}_1.fastq --output ${sample.id}/kraken_read_report_1.txt --report ${sample.id}/kraken_report_1.txt ${sample.id}_R1.fastq.gz
 		${kraken2_call} --unclassified-out ${sample.id}_2.fastq --output ${sample.id}/kraken_read_report_2.txt --report ${sample.id}/kraken_report_2.txt ${sample.id}_R2.fastq.gz
 
-		awk 'NR%4==1' *.fastq | sed 's/^@//' | cut -f 1 -d ' ' | sed 's/\\/[12]//' | sort | uniq -c | sed 's/^\\s\\+//' > union.txt
+		awk 'NR%4==1' *.fastq | sed 's/^@//' | cut -f 1 -d ' ' | sed 's/\\/[12]//' | sort -T tmp/ | uniq -c | sed 's/^\\s\\+//' > union.txt
+		rm -rf tmp/
 		grep '^1' union.txt | cut -f 2 -d " " > orphans.txt
 		grep '^2' union.txt | cut -f 2 -d " " > pairs.txt
 
