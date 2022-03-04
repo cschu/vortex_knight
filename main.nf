@@ -80,6 +80,8 @@ workflow {
 
 				preprocessed_ch = remove_host_kraken2.out.reads
 
+			}
+
 		}
 
 	} else {
