@@ -9,7 +9,7 @@ include { nevermore_simple_preprocessing } from "./nevermore/workflows/nevermore
 include { amplicon_analysis; bam_analysis; fastq_analysis } from "./vknight/workflows/vknight"
 include { classify_sample } from "./nevermore/modules/functions"
 include { remove_host_kraken2; remove_host_kraken2_individual } from "./nevermore/modules/decon/kraken2"
-include { flagstats; count_reads_flagstats } from "./nevermore/modules/stats"
+include { flagstats } from "./nevermore/modules/stats"
 
 
 def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2) && !params.amplicon_seq;
@@ -63,16 +63,22 @@ workflow {
 
 		nevermore_simple_preprocessing(raw_fastq_ch)
 
+		preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
 
 		if (params.remove_host) {
 
-			remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+			if (params.remove_host == "individual") {
 
-			preprocessed_ch = remove_host_kraken2.out.reads
+				remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
 
-		} else {
+				preprocessed_ch = remove_host_kraken2_individual.out.reads
 
-			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+
+			} else if (params.remove_host == "pair") {
+
+				remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+
+				preprocessed_ch = remove_host_kraken2.out.reads
 
 		}
 
@@ -91,8 +97,6 @@ workflow {
 		if (get_basecounts) {
 
 	        flagstats(fq2bam.out.reads)
-
-    	    count_reads_flagstats(flagstats.out.flagstats)
 
 		}
 
