@@ -2,12 +2,12 @@
 
 nextflow.enable.dsl=2
 
-include { kraken2 } from  "../../modules/vknight/profilers/kraken2"
-include { mtags_extract; mtags_annotate; mtags_merge } from "../../modules/vknight/profilers/mtags"
-include { motus2 } from  "../../modules/vknight/profilers/motus2"
-include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../../modules/vknight/profilers/mapseq"
-include { pathseq } from "../../modules/vknight/profilers/pathseq"
-include { read_counter } from "../../modules/vknight/profilers/read_counter"
+include { kraken2 } from  "../modules/profilers/kraken2"
+include { mtags_extract; mtags_annotate; mtags_merge } from "../modules/profilers/mtags"
+include { motus2 } from  "../modules/profilers/motus2"
+include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules/profilers/mapseq"
+include { pathseq } from "../modules/profilers/pathseq"
+include { read_counter } from "../modules/profilers/read_counter"
 
 
 if (!params.publish_mode) {

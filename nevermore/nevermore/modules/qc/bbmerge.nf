@@ -8,12 +8,12 @@ process qc_bbmerge {
     tuple val(sample), path("${sample}/${sample}_R*.fastq.gz"), optional: true, emit: pairs
 
     script:
-    def maxmem = task.memory.toString().replace(/ GB/, "g") //".GB", "g")
+    def maxmem = task.memory.toGiga()
     def merge_params = "rsem=t extend2=20 iterations=5 ecct vstrict"
 
     """
     mkdir -p ${sample} ${sample}.merged
 
-    bbmerge.sh -Xmx${maxmem} t=${task.cpus} ${merge_params} in=${sample}_R1.fastq.gz in2=${sample}_R2.fastq.gz out=${sample}.singles/${sample}.singles_M.fastq.gz outu1=${sample}/${sample}_R1.fastq.gz outu2=${sample}/${sample}_R2.fastq.gz
+    bbmerge.sh -Xmx${maxmem}g t=${task.cpus} ${merge_params} in=${sample}_R1.fastq.gz in2=${sample}_R2.fastq.gz out=${sample}.singles/${sample}.singles_M.fastq.gz outu1=${sample}/${sample}_R1.fastq.gz outu2=${sample}/${sample}_R2.fastq.gz
     """
 }

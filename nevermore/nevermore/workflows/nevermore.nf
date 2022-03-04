@@ -2,15 +2,18 @@
 
 nextflow.enable.dsl=2
 
-include { qc_bbduk } from "../../modules/nevermore/qc/bbduk"
-include { qc_bbduk_stepwise_amplicon } from "../../modules/nevermore/qc/bbduk_amplicon"
-include { qc_bbmerge } from "../../modules/nevermore/qc/bbmerge"
-include { fastqc } from "../../modules/nevermore/qc/fastqc"
-include { multiqc } from "../../modules/nevermore/qc/multiqc"
-include { classify_sample } from "../../modules/nevermore/functions"
+include { qc_bbduk } from "../modules/qc/bbduk"
+include { qc_bbduk_stepwise_amplicon } from "../modules/qc/bbduk_amplicon"
+include { qc_bbmerge } from "../modules/qc/bbmerge"
+include { fastqc } from "../modules/qc/fastqc"
+include { multiqc } from "../modules/qc/multiqc"
+include { classify_sample } from "../modules/functions"
 
 def merge_pairs = (params.merge_pairs || false)
 def keep_orphans = (params.keep_orphans || false)
+
+def asset_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/assets" : "${projectDir}/nevermore/assets"
+def config_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/config" : "${projectDir}/nevermore/config"
 
 
 process concat_singles {
@@ -56,7 +59,13 @@ workflow nevermore_simple_preprocessing {
 
 			qc_bbduk(fastq_ch, "${projectDir}/assets/adapters.fa")
 			processed_reads_ch = processed_reads_ch.concat(qc_bbduk.out.reads)
-			orphans_ch = orphans_ch.concat(qc_bbduk.out.orphans)
+			orphans_ch = qc_bbduk.out.orphans
+				.map { sample, file -> 
+					def meta = [:]
+					meta.is_paired = false
+					meta.id = sample.id + ".orphans"
+					return tuple(meta, file)
+				}
 
 		}
 

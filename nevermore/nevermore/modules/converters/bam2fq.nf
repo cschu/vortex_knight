@@ -5,7 +5,6 @@ process bam2fq {
     tuple val(sample), path(bam)
 
     output:
-    stdout
     tuple val(sample), path("fastq/${sample.id}/${sample.id}*.fastq.gz"), emit: reads
 
     script:
