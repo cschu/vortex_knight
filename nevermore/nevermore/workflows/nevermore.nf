@@ -15,6 +15,8 @@ def keep_orphans = (params.keep_orphans || false)
 def asset_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/assets" : "${projectDir}/nevermore/assets"
 def config_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/config" : "${projectDir}/nevermore/config"
 
+asset_dir.view()
+config_dir.view()
 
 process concat_singles {
     input:
@@ -43,7 +45,7 @@ workflow nevermore_simple_preprocessing {
 
         multiqc(
             fastqc.out.reports.map { sample, report -> report }.collect(),
-			"${projectDir}/config/multiqc.config"
+			"${config_dir}/multiqc.config"
         )
 
 		processed_reads_ch = Channel.empty()
@@ -51,13 +53,13 @@ workflow nevermore_simple_preprocessing {
 
 		if (params.amplicon_seq) {
 
-			qc_bbduk_stepwise_amplicon(fastq_ch, "${projectDir}/assets/adapters.fa")
+			qc_bbduk_stepwise_amplicon(fastq_ch, "${asset_dir}/adapters.fa")
 			processed_reads_ch = processed_reads_ch.concat(qc_bbduk_stepwise_amplicon.out.reads)
 			orphans_ch = orphans_ch.concat(qc_bbduk_stepwise_amplicon.out.orphans)
 
 		} else {
 
-			qc_bbduk(fastq_ch, "${projectDir}/assets/adapters.fa")
+			qc_bbduk(fastq_ch, "${asset_dir}/adapters.fa")
 			processed_reads_ch = processed_reads_ch.concat(qc_bbduk.out.reads)
 			orphans_ch = qc_bbduk.out.orphans
 				.map { sample, file -> 
