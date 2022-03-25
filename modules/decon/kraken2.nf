@@ -32,7 +32,7 @@ process remove_host_kraken2_individual {
 
 	output:
 	tuple val(sample), path("no_host/${sample.id}/${sample.id}_R*.fastq.gz"), emit: reads
-	tuple val(sample), path("no_host/${sample.id}/${sample.id}.c_orphans_R1.fastq.gz"), emit: chimera_orphans, optional:true
+	tuple val(sample), path("no_host/${sample.id}/${sample.id}.chimeras_R1.fastq.gz"), emit: chimera_orphans, optional:true
 
 	script:
 	def kraken2_call = "kraken2 --threads $task.cpus --db ${kraken_db} --report-minimizer-data --gzip-compressed --minimum-hit-groups ${params.kraken2_min_hit_groups}"
@@ -54,11 +54,11 @@ process remove_host_kraken2_individual {
 		grep '^1' union.txt | cut -f 2 -d " " > orphans.txt
 		grep '^2' union.txt | cut -f 2 -d " " > pairs.txt
 
-		seqtk subseq ${sample.id}_1.fastq orphans.txt | gzip -c - >> c_orphans.gz
-		seqtk subseq ${sample.id}_2.fastq orphans.txt | gzip -c - >> c_orphans.gz
+		seqtk subseq ${sample.id}_1.fastq orphans.txt | gzip -c - >> chimeras.gz
+		seqtk subseq ${sample.id}_2.fastq orphans.txt | gzip -c - >> chimeras.gz
 
-		if [[ ! -z "\$(gzip -dc c_orphans.gz | head -n 1)" ]]; then
-			mv c_orphans.gz no_host/${sample.id}/${sample.id}.c_orphans_R1.fastq.gz
+		if [[ ! -z "\$(gzip -dc chimeras.gz | head -n 1)" ]]; then
+			mv chimeras.gz no_host/${sample.id}/${sample.id}.chimeras_R1.fastq.gz
 		fi
 
 		seqtk subseq ${sample.id}_1.fastq pairs.txt | gzip -c - > no_host/${sample.id}/${sample.id}_R1.fastq.gz
