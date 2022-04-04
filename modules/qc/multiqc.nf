@@ -4,7 +4,7 @@ process multiqc {
     input:
     path(reports)
 	path(multiqc_config)
-	value(stage)
+	val(stage)
 
     output:
     path("reports/${stage}.multiqc_report.html")
