@@ -41,12 +41,12 @@ workflow nevermore_simple_preprocessing {
 
 	main:
 
-		fastqc(fastq_ch, "raw_data")
+		fastqc(fastq_ch, "raw")
 
         multiqc(
-            fastqc.out.reports.map { sample, report -> report }.collect(),
+            fastqc.out.stats.map { sample, report -> report }.collect(),
 			"${config_dir}/multiqc.config",
-			"raw_data"
+			"raw"
         )
 
 		processed_reads_ch = Channel.empty()
