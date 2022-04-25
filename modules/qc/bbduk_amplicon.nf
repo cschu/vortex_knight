@@ -1,6 +1,6 @@
 process qc_bbduk_stepwise_amplicon {
 	label 'bbduk'
-	publishDir path: params.output_dir, mode: params.publish_mode
+	// publishDir path: params.output_dir, mode: params.publish_mode
 
     input:
     tuple val(sample), path(reads)
