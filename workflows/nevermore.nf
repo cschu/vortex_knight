@@ -76,6 +76,7 @@ workflow nevermore_simple_preprocessing {
 
 		main_reads_out = processed_reads_ch
 		orphan_reads_out = orphans_ch
+		read_counts = fastqc.out.counts
 
 }
 
