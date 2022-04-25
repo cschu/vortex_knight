@@ -1,6 +1,6 @@
 process remove_host_kraken2 {
 	label 'kraken2'
-	publishDir params.output_dir, mode: params.publish_mode, pattern: "stats/decon/${sample.id}*.txt"
+	// publishDir params.output_dir, mode: params.publish_mode, pattern: "stats/decon/${sample.id}*.txt"
 
     input:
     tuple val(sample), path(fq)
@@ -29,7 +29,7 @@ process remove_host_kraken2 {
 
 process remove_host_kraken2_individual {
 	label 'kraken2'
-	publishDir params.output_dir, mode: params.publish_mode, pattern: "stats/decon/${sample.id}*.txt"
+	// publishDir params.output_dir, mode: params.publish_mode, pattern: "stats/decon/${sample.id}*.txt"
 
 	input:
 	tuple val(sample), path(fq)
@@ -60,18 +60,18 @@ process remove_host_kraken2_individual {
 		((grep '^1' union.txt | cut -f 2 -d " ") || true) > chimeras.txt
 		((grep '^2' union.txt | cut -f 2 -d " ") || true) > pairs.txt
 
-		seqtk subseq ${sample.id}_1.fastq chimeras.txt | gzip -c - >> chimeras.gz
+		seqtk subseq ${sample.id}_1.fastq chimeras.txt | gzip -c - > chimeras.gz
 		seqtk subseq ${sample.id}_1.fastq <(sed "s:\$:/1:" chimeras.txt) | gzip -c - >> chimeras.gz
-		seqtk subseq ${sample.id}_2.fastq chimeras.txt | gzip -c - >> chimeras.gz
+		seqtk subseq ${sample.id}_2.fastq chimeras.txt | gzip -c - > chimeras.gz
 		seqtk subseq ${sample.id}_2.fastq <(sed "s:\$:/2:" chimeras.txt) | gzip -c - >> chimeras.gz
 
 		if [[ ! -z "\$(gzip -dc chimeras.gz | head -n 1)" ]]; then
 			mv chimeras.gz no_host/${sample.id}/${sample.id}.chimeras_R1.fastq.gz
 		fi
 
-		seqtk subseq ${sample.id}_1.fastq pairs.txt | gzip -c - >> no_host/${sample.id}/${sample.id}_R1.fastq.gz
+		seqtk subseq ${sample.id}_1.fastq pairs.txt | gzip -c - > no_host/${sample.id}/${sample.id}_R1.fastq.gz
 		seqtk subseq ${sample.id}_1.fastq <(sed "s:\$:/1:" pairs.txt) | gzip -c - >> no_host/${sample.id}/${sample.id}_R1.fastq.gz
-		seqtk subseq ${sample.id}_2.fastq pairs.txt | gzip -c - >> no_host/${sample.id}/${sample.id}_R2.fastq.gz
+		seqtk subseq ${sample.id}_2.fastq pairs.txt | gzip -c - > no_host/${sample.id}/${sample.id}_R2.fastq.gz
 		seqtk subseq ${sample.id}_2.fastq <(sed "s:\$:/2:" pairs.txt) | gzip -c - >> no_host/${sample.id}/${sample.id}_R2.fastq.gz
 		"""
 	} else {
