@@ -45,7 +45,7 @@ process remove_host_kraken2_individual {
 
 	if (sample.is_paired) {
 		"""
-		set -o pipefail
+		set -e -o pipefail
 
 		mkdir -p no_host/${sample.id}
 		mkdir -p stats/decon/ 
@@ -73,6 +73,9 @@ process remove_host_kraken2_individual {
 		seqtk subseq ${sample.id}_1.fastq <(sed "s:\$:/1:" pairs.txt) | gzip -c - >> no_host/${sample.id}/${sample.id}_R1.fastq.gz
 		seqtk subseq ${sample.id}_2.fastq pairs.txt | gzip -c - > no_host/${sample.id}/${sample.id}_R2.fastq.gz
 		seqtk subseq ${sample.id}_2.fastq <(sed "s:\$:/2:" pairs.txt) | gzip -c - >> no_host/${sample.id}/${sample.id}_R2.fastq.gz
+
+		rm -f ${sample.id}_1.fastq ${sample.id}_2.fastq
+		rm -f chimeras.txt pairs.txt union.txt chimeras.gz
 		"""
 	} else {
 		"""
