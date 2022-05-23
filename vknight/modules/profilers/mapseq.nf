@@ -37,10 +37,10 @@ process mapseq_with_customdb {
 
 	"""
     mkdir -p ${sample.id}                                                                                               	
-    //${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R1.fastq.gz_bac_ssu.fasta ${db_string} > ${sample.id}/${sample.id}_R1_bac_ssu.mseq
     ${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R1*.fasta ${db_string} > ${sample.id}/${sample.id}_R1_bac_ssu.mseq
 	${r2_cmd}
 	"""
+    //${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R1.fastq.gz_bac_ssu.fasta ${db_string} > ${sample.id}/${sample.id}_R1_bac_ssu.mseq
 }
 
 
