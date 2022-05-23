@@ -36,13 +36,13 @@ process qc_bbduk_stepwise_amplicon {
 		"""
 	} else if (params.long_reads) {
 		"""
-	    mkdir -p ${sample.id}
+	    mkdir -p ${sample.id}/ tmp/
 		${bbduk_call} ${ref_p5_r1} minlength=${params.qc_minlen} ${params.p5_primer_params} in1=${sample.id}_R1.fastq.gz out1=fwd_p5.fastq.gz
 		${bbduk_call} ${ref_p5_r2} minlength=${params.qc_minlen} ${params.p5_primer_params} in1=${sample.id}_R2.fastq.gz out1=rev_p5.fastq.gz
 		${bbduk_call} ${ref_p3_r1} minlength=${params.qc_minlen} ${params.p3_primer_params} in1=fwd_p5.fastq.gz out1=fwd.fastq.gz
 		${bbduk_call} ${ref_p3_r2} minlength=${params.qc_minlen} ${params.p3_primer_params} in1=rev_p5.fastq.gz out1=rev.fastq.gz
-		gzip -dc fwd.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/1//' | sort > fwd.txt
-        gzip -dc rev.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/2//' | sort > rev.txt
+		gzip -dc fwd.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/1//' | sort -T tmp/ > fwd.txt
+        gzip -dc rev.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/2//' | sort -T tmp/ > rev.txt
 		join -1 1 -2 1 fwd.txt rev.txt > both.txt
 		seqtk subseq fwd.fastq.gz both.txt | gzip -c - > ${sample.id}/${sample.id}_R1.fastq.gz
 		seqtk subseq rev.fastq.gz both.txt | gzip -c - > ${sample.id}/${sample.id}_R2.fastq.gz
@@ -51,11 +51,11 @@ process qc_bbduk_stepwise_amplicon {
 		"""
 	} else {
 		"""
-	    mkdir -p ${sample.id}
+	    mkdir -p ${sample.id}/ tmp/
 		${bbduk_call} ${ref_p5_r1} minlength=${params.qc_minlen} ${params.p5_primer_params} in1=${sample.id}_R1.fastq.gz out1=fwd.fastq.gz
 		${bbduk_call} ${ref_p5_r2} minlength=${params.qc_minlen} ${params.p5_primer_params} in1=${sample.id}_R2.fastq.gz out1=rev.fastq.gz
-		gzip -dc fwd.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/1//' | sort > fwd.txt
-        gzip -dc rev.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/2//' | sort > rev.txt
+		gzip -dc fwd.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/1//' | sort -T tmp/ > fwd.txt
+        gzip -dc rev.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/2//' | sort -T tmp/ > rev.txt
 		join -1 1 -2 1 fwd.txt rev.txt > both.txt
 		seqtk subseq fwd.fastq.gz both.txt | gzip -c - > ${sample.id}/${sample.id}_R1.fastq.gz
 		seqtk subseq rev.fastq.gz both.txt | gzip -c - > ${sample.id}/${sample.id}_R2.fastq.gz
