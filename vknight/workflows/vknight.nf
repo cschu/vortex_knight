@@ -8,6 +8,7 @@ include { motus2 } from  "../modules/profilers/motus2"
 include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules/profilers/mapseq"
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
+include { fq2fa } from "../../nevermore/nevermore/modules/converters/fq2fa"
 
 
 if (!params.publish_mode) {
@@ -126,18 +127,19 @@ workflow amplicon_analysis {
 	main:
 		out_ch = Channel.empty()
 
-		mtags_extract(fastq_ch)
+		//mtags_extract(fastq_ch)
+		fq2fa(fastq_ch)
 
 		mapseq_ch = Channel.empty()
 
 		if (params.mapseq_db) {
 
-			mapseq_with_customdb(mtags_extract.out.mtags_out, params.mapseq_db)
+			mapseq_with_customdb(fq2fa.out.reads, params.mapseq_db)
 			mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect() 
 
 		} else {
 
-			mapseq(mtags_extract.out.mtags_out)
+			mapseq(fq2fq.out.reads)
 			mapseq_ch = mapseq.out.bac_ssu.collect() 
 
 		}
