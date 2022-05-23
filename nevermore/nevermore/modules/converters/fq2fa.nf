@@ -11,6 +11,6 @@ process fq2fa {
 
 	"""
 	mkdir -p out/
-	reformat.sh -Xmx${maxmem}g in=${sample.id}_R1.fastq.gz out=${sample.id}_R1.fasta ${r2} trimreaddescription=t"
+	reformat.sh -Xmx${maxmem}g in=${sample.id}_R1.fastq.gz out=${sample.id}_R1.fasta ${r2} trimreaddescription=t
 	"""
 }
