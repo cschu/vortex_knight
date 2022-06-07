@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 
-.libPaths(c("/g/scb/zeller/fspringe/Software/R/4.1", .libPaths()))
-source("/g/scb/zeller/fspringe/RScripts/functions/functions_read_in_profiled_data_210702.R")
+# .libPaths(c("/g/scb/zeller/fspringe/Software/R/4.1", .libPaths()))
+# source("/g/scb/zeller/fspringe/RScripts/functions/functions_read_in_profiled_data_210702.R")
+source("./functions_read_in_profiled_data_210702.R")
 
 library(optparse)
 library(tidyverse)

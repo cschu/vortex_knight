@@ -27,6 +27,69 @@ def run_fastq_analysis = (run_kraken2 || run_mtags || run_mapseq || run_motus2 |
 def run_amplicon_analysis = params.amplicon_seq
 
 
+process collate_results {
+	publishDir params.output_dir, mode: params.publish_mode
+
+	input:
+	path(results)
+	path(collate_script)
+
+	output:
+	path("collated/*.rds"), emit: collated, optional: true
+
+	script:
+	"""
+	mkdir -p collated/
+
+	mkdir -p kraken2/
+	mv *kraken2_report.txt kraken2/
+
+	mkdir -p motus/
+	mv *motus.txt motus/
+
+	mkdir -p pathseq/
+	mv *pathseq.scores pathseq/
+
+	mkdir -p libsize/
+	mv *libsize.txt libsize/
+
+	mkdir -p liblayout/
+	mv *is_paired.txt liblayout/
+
+	mkdir -p flagstats/
+	mv *flagstats.txt flagstats/
+
+	mkdir -p mapseq/
+	mv *mseq mapseq/
+
+	mkdir -p mtags_tables/
+	mv merged_profile.genus.tsv mtags_tables/
+
+	mkdir -p read_counter/
+	mv *read_counter.txt read_counter/
+
+	mkdir -p mtags_extract_fastq/
+	mv *bac_ssu.fasta mtags_extract_fastq/
+
+	mkdir -p raw_counts/
+	mv *.txt raw_counts/
+
+	Rscript ${script} \
+		--kraken2_res_path kraken2/ \
+		--mOTUs_res_path motus/ \
+		--PathSeq_res_path pathseq/ \
+		--mTAGs_res_path mtags_tables/ \
+		--mapseq_res_path mapseq/ \
+		--libsize_res_path libsize/ \
+		--lib_layout_res_path liblayout/ \
+		--N_raw_counts_path raw_counts/ \
+		--read_counter_res_path read_counter/ \
+		--out_folder collated/
+	"""
+}
+
+
+
 workflow {
 
 	fastq_ch = Channel
@@ -81,6 +144,8 @@ workflow {
 
 	}
 
+	results_ch = Channel.empty()
+
 
 	if (get_basecounts || run_bam_analysis) {
 
@@ -97,6 +162,7 @@ workflow {
 		if (run_bam_analysis) {
 
 			bam_analysis(fq2bam.out.reads)
+			results_ch = results_ch.join(bam_analysis.out.results)
 
 		}
 
@@ -106,12 +172,17 @@ workflow {
 	if (run_fastq_analysis) {
 
 		fastq_analysis(preprocessed_ch)
+		results_ch = results_ch.join(fastq_analysis.out.results)
 
 	}
 
 	if (run_amplicon_analysis) {
 
 		amplicon_analysis(preprocessed_ch)
+
+	} else {
+
+		collate_results(results_ch, "${projectDir}/scripts/ExtractProfiledCounts_210823.R")
 
 	}
 
