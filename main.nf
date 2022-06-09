@@ -33,6 +33,7 @@ process collate_results {
 	input:
 	path(results)
 	path(collate_script)
+	path(gtdb_markers)
 
 	output:
 	path("collated/*.rds"), emit: collated, optional: true
@@ -42,39 +43,41 @@ process collate_results {
 	mkdir -p collated/
 
 	mkdir -p kraken2/
-	mv *kraken2_report.txt kraken2/
+	(mv *kraken2_report.txt kraken2/) || :
 
 	mkdir -p motus/
-	mv *motus.txt motus/
+	(mv *motus.txt motus/) || :
 
 	mkdir -p pathseq/
-	mv *pathseq.scores pathseq/
+	(mv *pathseq.scores pathseq/) || :
 
 	mkdir -p libsize/
-	mv *libsize.txt libsize/
+	(mv *libsize.txt libsize/) || :
 
 	mkdir -p liblayout/
-	mv *is_paired.txt liblayout/
+	(mv *is_paired.txt liblayout/) || :
 
 	mkdir -p flagstats/
-	mv *flagstats.txt flagstats/
+	(mv *flagstats.txt flagstats/) || :
 
 	mkdir -p mapseq/
-	mv *mseq mapseq/
+	(mv *mseq mapseq/) || :
 
 	mkdir -p mtags_tables/
-	mv merged_profile.genus.tsv mtags_tables/
+	(mv merged_profile.genus.tsv mtags_tables/) || :
 
 	mkdir -p read_counter/
-	mv *read_counter.txt read_counter/
+	(mv *read_counter.txt read_counter/) || :
 
 	mkdir -p mtags_extract_fastq/
-	mv *bac_ssu.fasta mtags_extract_fastq/
+	(mv *bac_ssu.fasta mtags_extract_fastq/) || :
 
 	mkdir -p raw_counts/
-	mv *.txt raw_counts/
+	(mv *.txt raw_counts/) || :
 
-	Rscript ${script} \
+	Rscript ${collate_script} \
+		--libdir \$(dirname \$(readlink ${collate_script})) \
+		--gtdb_markers ${gtdb_markers} \
 		--kraken2_res_path kraken2/ \
 		--mOTUs_res_path motus/ \
 		--PathSeq_res_path pathseq/ \
@@ -146,7 +149,6 @@ workflow {
 
 	results_ch = Channel.empty()
 
-
 	if (get_basecounts || run_bam_analysis) {
 
 		fq2bam(preprocessed_ch)
@@ -156,23 +158,28 @@ workflow {
 	        flagstats(fq2bam.out.reads)
 
     	    count_reads_flagstats(flagstats.out.flagstats)
+			results_ch = results_ch
+				.concat(nevermore_simple_preprocessing.out.raw_counts)
+				.concat(flagstats.out.flagstats)
+				.concat(count_reads_flagstats.out.counts)
+				.concat(count_reads_flagstats.out.is_paired)
+				.map { sample, files -> files }
 
 		}
 
 		if (run_bam_analysis) {
 
 			bam_analysis(fq2bam.out.reads)
-			results_ch = results_ch.join(bam_analysis.out.results)
+			results_ch = results_ch.concat(bam_analysis.out.results)
 
 		}
 
     }
 
-
 	if (run_fastq_analysis) {
 
 		fastq_analysis(preprocessed_ch)
-		results_ch = results_ch.join(fastq_analysis.out.results)
+		results_ch = results_ch.concat(fastq_analysis.out.results)
 
 	}
 
@@ -180,10 +187,14 @@ workflow {
 
 		amplicon_analysis(preprocessed_ch)
 
-	} else {
+	}
 
-		collate_results(results_ch, "${projectDir}/scripts/ExtractProfiledCounts_210823.R")
-
+	if (!params.skip_collate) {
+		collate_results(
+			results_ch.collect(),
+			"${projectDir}/scripts/ExtractProfiledCounts_210823.R",
+			params.GTDB_markers
+		)
 	}
 
 }
