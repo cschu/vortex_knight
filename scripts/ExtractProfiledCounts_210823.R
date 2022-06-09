@@ -1,9 +1,5 @@
 #!/usr/bin/env Rscript
 
-# .libPaths(c("/g/scb/zeller/fspringe/Software/R/4.1", .libPaths()))
-# source("/g/scb/zeller/fspringe/RScripts/functions/functions_read_in_profiled_data_210702.R")
-source("./functions_read_in_profiled_data_210702.R")
-
 library(optparse)
 library(tidyverse)
 
@@ -38,11 +34,16 @@ option_list = list(
   
   
   make_option(c("--out_folder"), type="character", default=NULL, 
-              help="output folder path", metavar="character")
+              help="output folder path", metavar="character"),
+  make_option(c("--libdir"), type="character", default=".", help="path to functions", metavar="character"),
+  make_option(c("--gtdb_markers"), type="character", default=NULL, help="path to gtdb markers", metavar="character")
+
 ); 
 
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
+
+source(file.path(opt$libdir, "functions_read_in_profiled_data_210702.R"))
 
 out.folder <- opt$out_folder
 message("kraken2")
@@ -147,7 +148,7 @@ message("read_counter")
 if(!(is.null(opt$read_counter_res_path))){
   if(length(list.files(opt$read_counter_res_path))>0){
     #Load dataframe with information on the number of marker genes per species
-    N_marker_genes_per_species.df <- read_tsv("/g/scb/zeller/fspringe/Database/GTDB/GTDB_marker_genes_per_species.tsv")
+    N_marker_genes_per_species.df <- read_tsv(opt$gtdb_markers)
     min_genes_vec <- seq(2,20)
     res.rc.list <- list()
     for(i in seq(1,length(min_genes_vec))){
