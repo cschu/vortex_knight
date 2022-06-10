@@ -134,7 +134,7 @@ if(!(is.null(opt$flagstats_res_path))){
 #raw_counts folder: total number of raw_counts (before QC)
 if(!(is.null(opt$N_raw_counts_path))){
   if(file.exists(opt$N_raw_counts_path)){
-    if(length(list.files(opt$N_raw_counts_pat))>0){ #important for vknight implementation
+    if(length(list.files(opt$N_raw_counts_pat))>0){ #important for vknight implementation since raw_counts folder is created
       res.N_raw_counts <- .f_read_in_raw_counts_number(path_to_folder = opt$N_raw_counts_path)
       saveRDS(res.N_raw_counts,paste0(out.folder,"/res_libsize_raw_before_QC.rds"))
     } else{
