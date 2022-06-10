@@ -1,5 +1,8 @@
 #!/usr/bin/env Rscript
 
+.libPaths(c("/g/scb/zeller/fspringe/Software/R/4.1", .libPaths()))
+source("/g/scb/zeller/fspringe/RScripts/functions/functions_read_in_profiled_data_210702.R")
+
 library(optparse)
 library(tidyverse)
 
@@ -34,16 +37,11 @@ option_list = list(
   
   
   make_option(c("--out_folder"), type="character", default=NULL, 
-              help="output folder path", metavar="character"),
-  make_option(c("--libdir"), type="character", default=".", help="path to functions", metavar="character"),
-  make_option(c("--gtdb_markers"), type="character", default=NULL, help="path to gtdb markers", metavar="character")
-
+              help="output folder path", metavar="character")
 ); 
 
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
-
-source(file.path(opt$libdir, "functions_read_in_profiled_data_210702.R"))
 
 out.folder <- opt$out_folder
 message("kraken2")
@@ -136,10 +134,12 @@ if(!(is.null(opt$flagstats_res_path))){
 #raw_counts folder: total number of raw_counts (before QC)
 if(!(is.null(opt$N_raw_counts_path))){
   if(file.exists(opt$N_raw_counts_path)){
-    res.N_raw_counts <- .f_read_in_raw_counts_number(path_to_folder = opt$N_raw_counts_path)
-    saveRDS(res.N_raw_counts,paste0(out.folder,"/res_libsize_raw_before_QC.rds"))
-  } else{
-    message("No raw_counts folder present - No QC performed in the current run")
+    if(length(list.files(opt$N_raw_counts_pat))>0){ #important for vknight implementation
+      res.N_raw_counts <- .f_read_in_raw_counts_number(path_to_folder = opt$N_raw_counts_path)
+      saveRDS(res.N_raw_counts,paste0(out.folder,"/res_libsize_raw_before_QC.rds"))
+    } else{
+      message("No raw_counts folder present - No QC performed in the current run")
+    }
   }
 }
 
@@ -148,21 +148,21 @@ message("read_counter")
 if(!(is.null(opt$read_counter_res_path))){
   if(length(list.files(opt$read_counter_res_path))>0){
     #Load dataframe with information on the number of marker genes per species
-    N_marker_genes_per_species.df <- read_tsv(opt$gtdb_markers)
+    marker_gene_lengths.df <- read_tsv("/g/scb/zeller/fspringe/Database/GTDB/GTDB_marker_gene_lengths.tsv")
     min_genes_vec <- seq(2,20)
     res.rc.list <- list()
     for(i in seq(1,length(min_genes_vec))){
       message(paste0("Collating read_counter results with g= ",min_genes_vec[i]))
       tmp.res <- .f_read_in_read_counter(path_to_folder = opt$read_counter_res_path,
                                          min_genes = min_genes_vec[i],
-                                         marker_genes.df = N_marker_genes_per_species.df, 
+                                         marker_genes.df = marker_gene_lengths.df, 
                                          tax.level = "genus",
-										 norm_to_gene_number=FALSE)
+                                         norm_to_gene_length = TRUE)
       res.rc.list[[i]] <- tmp.res
     }
     names(res.rc.list) <- paste0("g",min_genes_vec)
     #save res.rc.list
-    saveRDS(res.rc.list,paste0(out.folder,"/res_read_counter_unnorm.rds"))
+    saveRDS(res.rc.list,paste0(out.folder,"/res_read_counter_norm.rds"))
   } else{
     message("read_counter path empty")
   }
