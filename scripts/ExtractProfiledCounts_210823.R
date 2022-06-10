@@ -35,7 +35,9 @@ option_list = list(
   
   
   make_option(c("--out_folder"), type="character", default=NULL, 
-              help="output folder path", metavar="character")
+              help="output folder path", metavar="character"),
+  make_option(c("--libdir"), type="character", default=".", help="path to functions", metavar="character"),
+  make_option(c("--gtdb_markers"), type="character", default=NULL, help="path to gtdb markers", metavar="character")
 ); 
 
 opt_parser = OptionParser(option_list=option_list);
