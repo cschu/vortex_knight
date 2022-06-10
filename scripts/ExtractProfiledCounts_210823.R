@@ -1,7 +1,5 @@
 #!/usr/bin/env Rscript
 
-.libPaths(c("/g/scb/zeller/fspringe/Software/R/4.1", .libPaths()))
-source("/g/scb/zeller/fspringe/RScripts/functions/functions_read_in_profiled_data_210702.R")
 
 library(optparse)
 library(tidyverse)
@@ -148,7 +146,7 @@ message("read_counter")
 if(!(is.null(opt$read_counter_res_path))){
   if(length(list.files(opt$read_counter_res_path))>0){
     #Load dataframe with information on the number of marker genes per species
-    marker_gene_lengths.df <- read_tsv("/g/scb/zeller/fspringe/Database/GTDB/GTDB_marker_gene_lengths.tsv")
+    marker_gene_lengths.df <- read_tsv(opt$gtdb_markers)
     min_genes_vec <- seq(2,20)
     res.rc.list <- list()
     for(i in seq(1,length(min_genes_vec))){
