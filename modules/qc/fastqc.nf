@@ -13,6 +13,7 @@ process fastqc {
     def process_r2 = (sample.is_paired) ? "fastqc -t $task.cpus --extract --outdir=fastqc ${sample.id}_R2.fastq.gz && mv fastqc/${sample.id}_R2_fastqc/fastqc_data.txt fastqc/${sample.id}_R2_fastqc/${sample.id}_R2_fastqc_data.txt" : "";
 
     """
+    set -e
     mkdir -p stats/${stage}/read_counts fastqc/
     fastqc -t $task.cpus --extract --outdir=fastqc ${sample.id}_R1.fastq.gz && mv fastqc/${sample.id}_R1_fastqc/fastqc_data.txt fastqc/${sample.id}_R1_fastqc/${sample.id}_R1_fastqc_data.txt
     ${process_r2}
