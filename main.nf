@@ -120,13 +120,16 @@ workflow {
 
 	prepare_fastqs(fastq_ch)
 
+	results_ch = Channel.empty()
 
 	if (do_preprocessing) {
 
 		raw_fastq_ch = prepare_fastqs.out.reads.concat(bfastq_ch)
 
 		nevermore_simple_preprocessing(raw_fastq_ch)
-
+		results_ch = results_ch
+			.concat(nevermore_simple_preprocessing.out.raw_counts)
+			.map { sample, files -> files }
 
 		if (params.remove_host) {
 
@@ -147,7 +150,6 @@ workflow {
 
 	}
 
-	results_ch = Channel.empty()
 
 	if (get_basecounts || run_bam_analysis) {
 
@@ -158,12 +160,11 @@ workflow {
 	        flagstats(fq2bam.out.reads)
 
     	    count_reads_flagstats(flagstats.out.flagstats)
-			results_ch = results_ch
-				.concat(nevermore_simple_preprocessing.out.raw_counts)
-				.concat(flagstats.out.flagstats)
+			flagstat_results_ch = flagstats.out.flagstats
 				.concat(count_reads_flagstats.out.counts)
 				.concat(count_reads_flagstats.out.is_paired)
 				.map { sample, files -> files }
+			results_ch = results_ch.concat(flagstat_results_ch)
 
 		}
 
