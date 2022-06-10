@@ -101,11 +101,13 @@ workflow fastq_analysis {
 
 					mapseq_with_customdb(mtags_extract.out.mtags_out, params.mapseq_db)
 					mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect()
+					out_ch = out_ch.concat(mapseq_with_customdb.out.bac_ssu)
 
 				} else {
 
 					mapseq(mtags_extract.out.mtags_out)
 					mapseq_ch = mapseq.out.bac_ssu.collect()
+					out_ch = out_ch.concat(mapseq.out.bac_ssu)
 
 				}
 	
