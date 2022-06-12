@@ -46,11 +46,12 @@ library(progress)
   }
 }
 
-.f_read_in_mapseq_raw <- function(path_to_folder,tax.lvl="genus",fname_mode="vknight"){
+.f_read_in_mapseq_raw <- function(path_to_folder,tax.lvl="genus",fname_mode="vknight",account_for_paired_reads=TRUE){
   #fname_mode defines how the filenames were constructed: 
   #vknight: SAMPLE_ID_R[0-9]_bac_ssu.mseq
   #manual: SAMPLE_ID_1.mseq
   #takes mapseq output files as input and returns a matrix with total counts at the selected taxonomic_level
+  #if reads are paired, the counts are averaged between the forward and the reverse reads (fwd = 4x fuso, rev = 10x fuso --> 7x fuso) [if account_for_paired_reads == TRUE]
   #!!! Works only if .mseq file was computed with --outfmt simple !!!#
   
   flist <- list.files(path_to_folder,pattern = ".mseq")
@@ -67,17 +68,15 @@ library(progress)
     sample.names <- unique(str_remove(flist,pattern = "_[0-9].mseq"))
     fwd_file_ending <- "_1.mseq"
     rev_file_ending <- "_2.mseq"
-  # }else if(fname_mode == "dada2"){
-  #   sample.names <- unique(str_remove(flist,pattern = ".mseq"))
-  #   fwd_file_ending <- ".mseq"
-  #   #rev_file_ending <- "_2.mseq"
-  # }
-  }
-  else{
+    # }else if(fname_mode == "dada2"){
+    #   sample.names <- unique(str_remove(flist,pattern = ".mseq"))
+    #   fwd_file_ending <- ".mseq"
+    #   #rev_file_ending <- "_2.mseq"
+    # }
+  }else{
     message("Incorrect fname_mode")
     stop()
   }
-  
   message(paste0("Importing ",length(sample.names)," samples"))
   res.df <- tibble(!!tax.lvl := character())
   pb <- progress_bar$new(total=length(sample.names))
@@ -88,67 +87,67 @@ library(progress)
     #load forward and reverse reads
     
     c.fwd <- tryCatch(
-      {read.table(paste0(path_to_folder,c.sample,fwd_file_ending),sep = "\t",
-                  skip = 1,check.names = FALSE,comment.char = "$",header = TRUE)},
+      {data.table::fread(file = paste0(path_to_folder,c.sample,fwd_file_ending))},
       error=function(e){
         c.fwd <- data.frame(matrix(ncol = 14,nrow = 0))
-        }
+      }
     )
     c.rev <- tryCatch(
-      {read.table(paste0(path_to_folder,c.sample,rev_file_ending),sep = "\t",
-                  skip = 1,check.names = FALSE,comment.char = "$",header = TRUE)},
+      {data.table::fread(file = paste0(path_to_folder,c.sample,rev_file_ending))},
       error=function(e){
         c.rev <- data.frame(matrix(ncol = 14,nrow = 0))
       }
     )
-    #combine them and select Column1 (#query) and Column14 (tax.info)
-    colnames(c.fwd) <- seq(1,ncol(c.fwd))
-    colnames(c.rev) <- seq(1,ncol(c.rev))
+    
+    #check if both, forward and reverse reads are present. If not, treat sample as unpaired
+    if(nrow(c.fwd)>0 & nrow(c.rev)>0){sample.type <- "paired"}
     
     c.combined <- rbind(c.fwd[,c(1,14)],
                         c.rev[,c(1,14)])
     colnames(c.combined) <- c("read_id","tax_info")
     
-    tax.resolved <- c.combined %>%
-      separate(tax_info, into=c('kingdom', 'phylum', 'class',
-                                   'order', 'family', 'genus', 'species'),sep = ";")
+    c.combined[,c('kingdom', 'phylum', 'class','order', 'family', 'genus', 'species') := data.table::tstrsplit(x = tax_info,";")]
     
     #compute absolute abudnance
-    tax.counts <- tax.resolved %>%
+    tax.counts <- c.combined %>%
+      select(-tax_info) %>% 
       filter(str_detect(kingdom,pattern = "Bacteria")) %>% 
       group_by(!!as.symbol(tax.lvl)) %>%
       summarize(counts = length(read_id)) %>%
       arrange(desc(counts)) %>%
-      rename(!!c.sample := counts) %>%
       mutate(!!tax.lvl := case_when(!(is.na(!!as.symbol(tax.lvl))) ~ !!as.symbol(tax.lvl),
                                     TRUE ~ "not_resolved"))
-    
-    #extract bacterial counts
-    bact.counts <- tax.resolved %>%
-      filter(str_detect(kingdom,pattern = "Bacteria")) %>%
-      summarise(counts = length(read_id)) %>%
-      rename(!!c.sample := counts) %>%
-      mutate(!!tax.lvl := "Bacteria") %>%
-      relocate(!!tax.lvl)
-    
+    rm(c.combined,c.fwd,c.rev)
+    #add bacterial counts
+    bact.counts <- tibble(genus = "Bacteria",counts = sum(tax.counts$counts))
     tax.counts <- bind_rows(bact.counts,tax.counts)
+    
+    #If reads are paired, divide counts by 2 (assuming )
+    if(isTRUE(account_for_paired_reads) & sample.type=="paired"){
+      tax.counts <- tax.counts %>% mutate(counts = round(counts/2,0))
+    }
+    
     #remove "g__" from tax.lvl column name
     tax.counts[[tax.lvl]] <- str_remove(tax.counts[[tax.lvl]],pattern = "[a-zA-Z]__")
+    colnames(tax.counts)[2] <- c.sample
     
-    #res.df <- suppressMessages(full_join(res.df,tax.rel,by=tax.lvl))
     res.df <- suppressMessages(full_join(res.df,tax.counts,by=tax.lvl))
     pb$tick()
     
   }
-  #create output matrix:convert NAs to zero
-  res.mat <- as.matrix(res.df[,-1])
-  rownames(res.mat) <- res.df[[tax.lvl]]
-  res.mat[is.na(res.mat)] <- 0
+  
+  #create output matrix
+  res.mat <- 
+    res.df %>% 
+    as.data.frame() %>% 
+    column_to_rownames(tax.lvl) %>% 
+    replace(is.na(.),0) %>% 
+    as.matrix()
   
   return(res.mat)
 }
 
-
+1+1
 .f_read_in_files_kraken2 <- function(path_to_folder,tax.level){
   ### Read in kraken2 result files and return matrix with counts per bacteria and sample
   
@@ -488,8 +487,12 @@ library(progress)
   return(df.raw_counts)
 }
 
-.f_read_in_read_counter <- function(path_to_folder,min_genes,marker_genes.df,tax.level="genus",norm_to_gene_number=TRUE){
+.f_read_in_read_counter <- function(path_to_folder,min_genes,marker_genes.df,tax.level="genus",norm_to_gene_length=TRUE){
   #Creates count matrix from folder of read_counter output files considering all species that were hit with at least <min_genes> marker genes
+  #normalization: Assumes read_counter was run with "-y insert.raw_counts"; if norm_to_gene_length == TRUE, normalization is performed via:
+  #1) sum up counts per species over all marker genes
+  #2) divide by total length of marker genes for the given species
+  #3) multiply by average length of marker genes over all species in the DB
   
   file_list <- list.files(path=path_to_folder)
   message(paste0(length(file_list)," files in the given folder"))
@@ -498,42 +501,46 @@ library(progress)
   ### iterate over every file and select counts at the selected tax level
   pb <- progress_bar$new(total=length(file_list))
   for(i in seq(1,length(file_list))){
-    if(file.info(paste0(path_to_folder,file_list[i]))$size==0){
-      message(paste0("Sample ",file_list[i]," is empty - skipping"))
-      pb$tick()
-      next
-    }
-    tmp.file <- try(read.table(paste0(path_to_folder,file_list[i]),sep = "\t",skip = 1),silent = TRUE)
-    if(!(typeof(tmp.file)=="list")){
-      message(paste0("Sample ",file_list[i]," is empty - skipping"))
+    sample.name <- file_list[i]
+    
+    tmp.file <- tryCatch(
+      {data.table::fread(file = paste0(path_to_folder,sample.name),sep = "\t",skip = 1)},
+      error=function(e){
+        c.fwd <- data.frame(matrix(ncol = 14,nrow = 0))
+      }
+    )
+    if(!(nrow(tmp.file)>0 & ncol(tmp.file)>0)){
+      message(paste0("Sample ",sample.name," is empty - skipping"))
       pb$tick()
       next
     }
     
-  
-    file.name <- str_remove_all(file_list[i],pattern = "\\.read_counter.txt|\\.txt")
+    
+    file.name <- str_remove_all(sample.name,pattern = "\\.read_counter.txt|\\.txt")
     
     c.counts <- suppressMessages(.f_read_counter_to_count_mat(read_counter_out.file = tmp.file,
                                                               file.name = file.name,
                                                               min_genes = min_genes,
                                                               marker_genes.df = marker_genes.df,
                                                               tax.level = tax.level,
-                                                              norm_to_gene_number=norm_to_gene_number))
+                                                              norm_to_gene_length=norm_to_gene_length))
     counts.df <- suppressMessages(full_join(counts.df,c.counts))
     pb$tick()
   }
   
-  #Do some polishing - make matrix, tidy bacteria names, replace NAs by 0
-  counts.df <- as.data.frame(counts.df %>% filter(!(is.na(!!as.symbol(tax.level)))))
-  rownames(counts.df) <- str_remove(string = counts.df[,1],pattern = ".__")
-  counts.df[[1]] <- NULL
-  counts.mat <- as.matrix(counts.df)
-  counts.mat[is.na(counts.mat)] <- 0
+  #create output matrix
+  counts.mat <- 
+    counts.df %>% 
+    mutate(!!as.symbol(tax.level) := str_remove(!!as.symbol(tax.level),pattern = ".__")) %>% 
+    as.data.frame() %>% 
+    column_to_rownames(tax.level) %>% 
+    replace(is.na(.),0) %>% 
+    as.matrix()
   
   return(counts.mat)
 }
 
-.f_read_counter_to_count_mat <- function(read_counter_out.file,file.name,min_genes,marker_genes.df,tax.level="genus",norm_to_gene_number=TRUE){
+.f_read_counter_to_count_mat <- function(read_counter_out.file,file.name,min_genes,marker_genes.df,tax.level="genus",norm_to_gene_length=TRUE){
   #takes output file from read_counter tool and returns the median counts aggregated by the selected taxonomic rank
   c.df <-
     read_counter_out.file %>%
@@ -545,6 +552,9 @@ library(progress)
              sep="[-](?=[^-]+$)",fill = "right") %>%#splits only at the last occurence of the character "-"
     rename(read_count  = V2)
   
+  #get bacterial counts (only valid if read_counter is run with mode "-y insert.raw_counts")
+  bact.counts <- tibble(!!as.symbol(tax.level) := "Bacteria", !!as.symbol(file.name) := sum(c.df$read_count))
+  
   #Determine how many marker genes were identified at species level to threshold species
   c.N_genes <- (c.df %>% select(species,gene) %>%  group_by(species) %>% summarise(n=n()))
   
@@ -552,47 +562,41 @@ library(progress)
   c.by_species <-
     c.df %>%
     select(species,gene,read_count) %>%
-    filter(species %in% (c.N_genes %>% filter(n>=min_genes) %>% pull(species))) %>%
-    group_by(species)  
+    filter(species %in% (c.N_genes %>% filter(n>=min_genes) %>% pull(species)))
   
-  if(isTRUE(norm_to_gene_number)){
+  c.by_species
+  
+  if(isTRUE(norm_to_gene_length)){
     #average read_counts over all marker genes and also consider number of marker genes with zero counts
+    avg.gene_length <- mean(marker_genes.df$sum_length_bySpecies)
     c.by_species <- 
       c.by_species %>% 
+      group_by(species) %>% 
       summarise(sum = sum(read_count)) %>% 
       left_join(.,marker_genes.df) %>%
-      mutate(avg = sum/N_marker_genes)
+      mutate(avg = (sum/sum_length_bySpecies)*avg.gene_length)
+    
   }else{
     #take median
     c.by_species <- c.by_species %>% 
+      group_by(species) %>% 
       summarise(avg = median(read_count))
   }
   
-    
   
-  #Select the taxonomic level of interest and add all the mean-gene-conuts up to the selected level
+  #Select the taxonomic level of interest and sum up all the (normalized)counts up to the selected level
   c.tax.counts <-
     c.df %>%
     select(!!as.symbol(tax.level),species) %>%
     inner_join(.,c.by_species %>% select(species,avg)) %>%
     distinct() %>%
     group_by(!!as.symbol(tax.level)) %>%
-    summarise(!!file.name := sum(avg))
+    summarise(!!file.name := round(sum(avg),0)) %>% 
+    bind_rows(bact.counts,.)
+  
+  
   
   return(c.tax.counts)
-}
-
-#Read in files from dada2 processing
-.f_resolve_ASVs <- function(mseq.output){
-  #ASVs need to be in column "ASV" and taxonomic information must be in column "tax.info"
-  #takes ASVs.mseq output file and resolves ASVs
-  
-  tax.resolved <- mseq.output[,c(1,14)] %>% 
-    separate(colnames(mseq.output)[14], into=c('kingdom', 'phylum', 'class', 
-                                               'order', 'family', 'genus', 'species'),sep = ";")
-  colnames(tax.resolved)[1] <- "ASV"
-  
-  return(tax.resolved)
 }
 
 .f_ASV_to_tax <- function(lvl,asv_table,mseq.output){
