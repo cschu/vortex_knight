@@ -43,6 +43,8 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
 
+source(file.path(opt$libdir, "functions_read_in_profiled_data_210702.R"))
+
 out.folder <- opt$out_folder
 message("kraken2")
 #kraken2
