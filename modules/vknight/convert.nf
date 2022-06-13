@@ -5,37 +5,38 @@ process bam2fq {
     tuple val(sample), path(bam)
 
     output:
-    tuple val(sample), path("fastq/${sample.id}/${sample.id}*.fastq.gz"), emit: reads
+    tuple val(sample), path("fastq/${sample}/${sample}*.fastq.gz"), emit: reads
 
     script:
     """
     set -o pipefail
-    mkdir -p fastq/${sample.id}
-    samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 -0 ${sample.id}_other.fastq.gz -1 ${sample.id}_R1.fastq.gz -2 ${sample.id}_R2.fastq.gz
+    mkdir -p fastq/${sample}
+    samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 -0 ${sample}_other.fastq.gz -1 ${sample}_R1.fastq.gz -2 ${sample}_R2.fastq.gz
 
     if [[ "\$?" -eq 0 ]];
     then
 
-        if [[ -z "\$(gzip -dc ${sample.id}_R1.fastq.gz | head -n 1)" ]];
+        if [[ -z "\$(gzip -dc ${sample}_R1.fastq.gz | head -n 1)" ]];
         then
-            if [[ ! -z "\$(gzip -dc ${sample.id}_other.fastq.gz | head -n 1)" ]];
+            if [[ ! -z "\$(gzip -dc ${sample}_other.fastq.gz | head -n 1)" ]];
             then
-                mv -v ${sample.id}_other.fastq.gz fastq/${sample.id}/${sample.id}_R1.fastq.gz;
+                mv -v ${sample}_other.fastq.gz fastq/${sample}/${sample}_R1.fastq.gz;
             fi;
         else
-                mv -v ${sample.id}_R1.fastq.gz fastq/${sample.id}/;
-                if [[ ! -z "\$(gzip -dc ${sample.id}_R2.fastq.gz | head -n 1)" ]];
+                mv -v ${sample}_R1.fastq.gz fastq/${sample}/;
+                if [[ ! -z "\$(gzip -dc ${sample}_R2.fastq.gz | head -n 1)" ]];
                 then
-                    mv -v ${sample.id}_R2.fastq.gz fastq/${sample.id}/;
+                    mv -v ${sample}_R2.fastq.gz fastq/${sample}/;
                 fi;
         fi;
 
         ls -l *.fastq.gz
-        ls -l fastq/${sample.id}/*.fastq.gz
+        ls -l fastq/${sample}/*.fastq.gz
         rm -rf *.fastq.gz
     fi;
     """
 }
+
 
 process fq2bam {
     input:
@@ -45,18 +46,15 @@ process fq2bam {
     tuple val(sample), path("out/${sample.id}.bam"), emit: reads
 
     script:
-    if (sample.is_paired) {
-        """
-        mkdir -p out
-        gatk FastqToSam -F1 ${fq[0]} -F2 ${fq[1]} -O out/${sample.id}.bam -SM ${sample.id}
-        """
-    } else {
-        """
-        mkdir -p out
-        gatk FastqToSam -F1 ${fq[0]} -O out/${sample.id}.bam -SM ${sample.id}
-        """
-    }
+	def maxmem = task.memory.toGiga()
+	def r2 = (sample.is_paired) ? "in2=${sample.id}_R2.fastq.gz" : ""
+
+	"""
+	mkdir -p out/
+	reformat.sh -Xmx${maxmem}g in=${sample.id}_R1.fastq.gz ${r2} trimreaddescription=t out=stdout.bam | samtools addreplacerg -r "ID:A" -r "SM:${sample.id}" -o out/${sample.id}.bam -
+	"""
 }
+
 
 process prepare_fastqs {
     publishDir params.output_dir, mode: params.publish_mode

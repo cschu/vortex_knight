@@ -4,24 +4,93 @@ nextflow.enable.dsl=2
 
 include { bam2fq; fq2bam; prepare_fastqs } from "./modules/vknight/convert"
 include { nevermore_simple_preprocessing } from "./workflows/nevermore/nevermore"
-include { bam_analysis; fastq_analysis; collate_data } from "./workflows/vknight/vknight"
+include { amplicon_analysis; bam_analysis; fastq_analysis } from "./workflows/vknight/vknight"
 include { classify_sample } from "./modules/nevermore/functions"
 include { remove_host_kraken2 } from "./modules/nevermore/decon/kraken2"
-include { flagstats; count_reads } from "./modules/vknight/stats"
+include { flagstats; count_reads_flagstats } from "./modules/vknight/stats"
 
 
-def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2);
+def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2) && !params.amplicon_seq;
 def run_mtags = (!params.skip_mtags || params.run_mtags);
 def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && params.mapseq_bin)
-def run_motus2 = (!params.skip_motus2 || params.run_motus2);
-def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
-def run_count_reads = (!params.skip_counts || params.run_counts);
-def convert_fastq2bam = (run_pathseq || run_count_reads);
+def run_motus2 = (!params.skip_motus2 || params.run_motus2) && !params.amplicon_seq;
+def run_pathseq = (!params.skip_pathseq || params.run_pathseq) && !params.amplicon_seq;
+def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
+
+def get_basecounts = (!params.skip_basecounts || params.run_basecounts);
+def convert_fastq2bam = (run_pathseq || get_basecounts);
 
 def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
 
-def run_bam_analysis = run_pathseq
-def run_fastq_analysis = run_kraken2 || run_mtags || run_mapseq || run_motus2
+def run_bam_analysis = run_pathseq && !params.amplicon_seq
+def run_fastq_analysis = (run_kraken2 || run_mtags || run_mapseq || run_motus2 || run_read_counter) && !params.amplicon_seq
+def run_amplicon_analysis = params.amplicon_seq
+
+
+process collate_results {
+	publishDir params.output_dir, mode: params.publish_mode
+
+	input:
+	path(results)
+	path(collate_script)
+	path(gtdb_markers)
+
+	output:
+	path("collated/*.rds"), emit: collated, optional: true
+
+	script:
+	"""
+	mkdir -p collated/
+
+	mkdir -p kraken2/
+	(mv *kraken2_report.txt kraken2/) || :
+
+	mkdir -p motus/
+	(mv *motus.txt motus/) || :
+
+	mkdir -p pathseq/
+	(mv *pathseq.scores pathseq/) || :
+
+	mkdir -p libsize/
+	(mv *libsize.txt libsize/) || :
+
+	mkdir -p liblayout/
+	(mv *is_paired.txt liblayout/) || :
+
+	mkdir -p flagstats/
+	(mv *flagstats.txt flagstats/) || :
+
+	mkdir -p mapseq/
+	(mv *mseq mapseq/) || :
+
+	mkdir -p mtags_tables/
+	(mv merged_profile.genus.tsv mtags_tables/) || :
+
+	mkdir -p read_counter/
+	(mv *read_counter.txt read_counter/) || :
+
+	mkdir -p mtags_extract_fastq/
+	(mv *bac_ssu.fasta mtags_extract_fastq/) || :
+
+	mkdir -p raw_counts/
+	(mv *.txt raw_counts/) || :
+
+	Rscript ${collate_script} \
+		--libdir \$(dirname \$(readlink ${collate_script})) \
+		--gtdb_markers ${gtdb_markers} \
+		--kraken2_res_path kraken2/ \
+		--mOTUs_res_path motus/ \
+		--PathSeq_res_path pathseq/ \
+		--mTAGs_res_path mtags_tables/ \
+		--mapseq_res_path mapseq/ \
+		--libsize_res_path libsize/ \
+		--lib_layout_res_path liblayout/ \
+		--N_raw_counts_path raw_counts/ \
+		--read_counter_res_path read_counter/ \
+		--out_folder collated/
+	"""
+}
+
 
 
 workflow {
@@ -43,18 +112,24 @@ workflow {
 			return tuple(sample, file)
 		}
 		.groupTuple(sort: true)
-        .map { classify_sample(it[0], it[1]) }
 
 	bam2fq(bam_ch)
 
+	bfastq_ch = bam2fq.out.reads
+		.map { classify_sample(it[0], it[1]) }
+
+	prepare_fastqs(fastq_ch)
+
+	results_ch = Channel.empty()
+
 	if (do_preprocessing) {
 
-		prepare_fastqs(fastq_ch)
-
-		raw_fastq_ch = prepare_fastqs.out.reads.concat(bam2fq.out.reads)
+		raw_fastq_ch = prepare_fastqs.out.reads.concat(bfastq_ch)
 
 		nevermore_simple_preprocessing(raw_fastq_ch)
-
+		results_ch = results_ch
+			.concat(nevermore_simple_preprocessing.out.raw_counts)
+			.map { sample, files -> files }
 
 		if (params.remove_host) {
 
@@ -70,68 +145,57 @@ workflow {
 
 	} else {
 
-		preprocessed_ch = fastq_ch
+		preprocessed_ch = prepare_fastqs.out.reads
+			.concat(bfastq_ch)
 
 	}
 
 
-	if (run_count_reads || run_bam_analysis) {
+	if (get_basecounts || run_bam_analysis) {
 
 		fq2bam(preprocessed_ch)
 
-		if (run_count_reads) {
+		if (get_basecounts) {
 
 	        flagstats(fq2bam.out.reads)
 
-    	    count_reads(flagstats.out.flagstats)
+    	    count_reads_flagstats(flagstats.out.flagstats)
+			flagstat_results_ch = flagstats.out.flagstats
+				.concat(count_reads_flagstats.out.counts)
+				.concat(count_reads_flagstats.out.is_paired)
+				.map { sample, files -> files }
+			results_ch = results_ch.concat(flagstat_results_ch)
 
 		}
 
 		if (run_bam_analysis) {
 
 			bam_analysis(fq2bam.out.reads)
+			results_ch = results_ch.concat(bam_analysis.out.results)
 
 		}
 
     }
 
-
 	if (run_fastq_analysis) {
 
 		fastq_analysis(preprocessed_ch)
+		results_ch = results_ch.concat(fastq_analysis.out.results)
 
 	}
 
+	if (run_amplicon_analysis) {
 
-//	/* collate data */
-//
-//	if (params.collate_script != null && params.collate_script != "") {
-//		data_to_collate_ch = Channel.empty()
-//
-//		if (run_kraken2) {
-//			data_to_collate_ch = data_to_collate_ch.concat(kraken2.out.kraken2_out)
-//		}
-//
-//		if (run_count_reads) {
-//			data_to_collate_ch = data_to_collate_ch.concat(count_reads.out.counts)
-//				.concat(count_reads.out.is_paired)
-//		}
-//
-//		if (run_motus2) {
-//			data_to_collate_ch = data_to_collate_ch.concat(motus2.out.motus_out)
-//		}
-//
-//		if (run_pathseq) {
-//			data_to_collate_ch = data_to_collate_ch.concat(pathseq.out.scores)
-//		}
-//
-//		data_to_collate_ch = data_to_collate_ch
-//			.map { sample, files -> return files }
-//
-//		if (run_mtags) {
-//			data_to_collate_ch = data_to_collate_ch.concat(mtags_merge.out.mtags_tables)
-//		}
-//
-//		collate_data(data_to_collate_ch.collect())
-//	}
+		amplicon_analysis(preprocessed_ch)
+
+	}
+
+	if (!params.skip_collate) {
+		collate_results(
+			results_ch.collect(),
+			"${projectDir}/scripts/ExtractProfiledCounts_210823.R",
+			params.GTDB_markers
+		)
+	}
+
 }

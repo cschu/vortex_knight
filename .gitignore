@@ -1,3 +1,5 @@
+*.sif
+
 slurm*.out
 .nextflow*
 
