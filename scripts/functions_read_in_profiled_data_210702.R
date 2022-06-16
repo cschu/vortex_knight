@@ -80,41 +80,59 @@ library(progress)
   message(paste0("Importing ",length(sample.names)," samples"))
   res.df <- tibble(!!tax.lvl := character())
   pb <- progress_bar$new(total=length(sample.names))
-  i <- 1
+  i <- 306
   for(i in seq(1,length(sample.names))){
+    #message(i)
     c.sample <- sample.names[i]
     
     #load forward and reverse reads
     
     c.fwd <- tryCatch(
-      {data.table::fread(file = paste0(path_to_folder,c.sample,fwd_file_ending))},
+      {data.table::fread(file = paste0(path_to_folder,c.sample,fwd_file_ending),skip = 1,header = T)},
       error=function(e){
-        c.fwd <- data.frame(matrix(ncol = 14,nrow = 0))
+        c.fwd <- data.frame(matrix(ncol = 15,nrow = 0))
       }
     )
     c.rev <- tryCatch(
-      {data.table::fread(file = paste0(path_to_folder,c.sample,rev_file_ending))},
+      {data.table::fread(file = paste0(path_to_folder,c.sample,rev_file_ending),skip = 1,header = T)},
       error=function(e){
-        c.rev <- data.frame(matrix(ncol = 14,nrow = 0))
+        c.rev <- data.frame(matrix(ncol = 15,nrow = 0))
       }
     )
+    colnames(c.fwd) <- as.character(seq(1,ncol(c.fwd)))
+    colnames(c.rev) <- as.character(seq(1,ncol(c.rev)))
     
     #check if both, forward and reverse reads are present. If not, treat sample as unpaired
-    if(nrow(c.fwd)>0 & nrow(c.rev)>0){sample.type <- "paired"}
+    if(nrow(c.fwd)==0 & nrow(c.rev)==0){#skip if both read files are empty
+      next
+      pb$tick()
+    } 
+    if(nrow(c.fwd)>0 & nrow(c.rev)>0){
+      sample.type <- "paired"
+    }else{
+      sample.type <- "single"
+    }
     
     c.combined <- rbind(c.fwd[,c(1,14)],
                         c.rev[,c(1,14)])
     colnames(c.combined) <- c("read_id","tax_info")
     
-    c.combined[,c('kingdom', 'phylum', 'class','order', 'family', 'genus', 'species') := data.table::tstrsplit(x = tax_info,";")]
-    
+    tax.split <- data.table::tstrsplit(x = c.combined$tax_info,";")
+    #make list with 7 entries to match taxonomic tree
+    if(length(tax.split)<7){tax.split[(length(tax.split)+1):7] <- NA}#fill with NAs up to species level
+    c.combined[,c('kingdom', 'phylum', 'class','order', 'family', 'genus', 'species')] <- tax.split
+  
+    if(all(is.na(c.combined[[tax.lvl]]))){
+      next
+      pb$tick()
+    }#skip if no counts at tax level are present
     #compute absolute abudnance
     tax.counts <- c.combined %>%
       select(-tax_info) %>% 
-      filter(str_detect(kingdom,pattern = "Bacteria")) %>% 
+      filter(str_detect(kingdom,pattern = "Bacteria")) %>%
       group_by(!!as.symbol(tax.lvl)) %>%
       summarize(counts = length(read_id)) %>%
-      arrange(desc(counts)) %>%
+      arrange(desc(counts)) %>% 
       mutate(!!tax.lvl := case_when(!(is.na(!!as.symbol(tax.lvl))) ~ !!as.symbol(tax.lvl),
                                     TRUE ~ "not_resolved"))
     rm(c.combined,c.fwd,c.rev)
@@ -147,7 +165,7 @@ library(progress)
   return(res.mat)
 }
 
-1+1
+
 .f_read_in_files_kraken2 <- function(path_to_folder,tax.level){
   ### Read in kraken2 result files and return matrix with counts per bacteria and sample
   
