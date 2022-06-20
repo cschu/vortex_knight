@@ -207,10 +207,13 @@ library(progress)
       next
     }
     
-    bac.end <- which(c.f[,6] == "Viruses")-1
+    virus.start <- which(c.f[,6] == "Viruses") #get row in table at which "viruses" start
+    archea.start <- bac.end <- which(c.f[,6] == "Archaea") #get row in table at which "archea" start
+    bac.end <- min(virus.start,archea.start)-1 #get last row with entries for bacteria
     if(is_empty(bac.end)){
       bac.end <- nrow(c.f)
     }
+    
     bac.reads <- c.f[(bac.start:bac.end),]  
     
     ### select counts and tax names
