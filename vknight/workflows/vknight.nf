@@ -106,7 +106,7 @@ workflow fastq_analysis {
 				} else {
 
 					mapseq(mtags_extract.out.mtags_out)
-					mapseq_ch = mapseq.out.bac_ssu.collect
+					mapseq_ch = mapseq.out.bac_ssu.collect()
 
 				}
 	
