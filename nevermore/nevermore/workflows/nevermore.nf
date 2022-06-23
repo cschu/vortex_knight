@@ -50,6 +50,7 @@ workflow nevermore_simple_preprocessing {
 
 		processed_reads_ch = Channel.empty()
 		orphans_ch = Channel.empty()
+		rawcounts_ch = fastqc.out.counts
 
 		if (params.amplicon_seq) {
 
@@ -75,6 +76,8 @@ workflow nevermore_simple_preprocessing {
 
 		main_reads_out = processed_reads_ch
 		orphan_reads_out = orphans_ch
+		raw_counts = rawcounts_ch
+		
 
 }
 
