@@ -184,9 +184,9 @@ library(progress)
   ### iterate over every file and select counts at the selected tax level
   pb <- progress_bar$new(total=length(file_list))
   total.counts.mapped <- tibble(Sample_ID = !!gsub(x = file_list,pattern = ".txt",replacement = ""),tot.counts.mapped = double(length(file_list)))
-  i <- 315
+  i <- 81
   for(i in seq(1,length(file_list))){
-    
+    #message(i)
     ### read in file
     #chec if file is empty
     if(file.info(paste0(path_to_folder,file_list[i]))$size==0){
@@ -209,11 +209,12 @@ library(progress)
     
     virus.start <- which(c.f[,6] == "Viruses") #get row in table at which "viruses" start
     archea.start <- bac.end <- which(c.f[,6] == "Archaea") #get row in table at which "archea" start
+    
     bac.end <- min(virus.start,archea.start)-1 #get last row with entries for bacteria
-    if(is_empty(bac.end)){
+    if(!(is.finite(bac.end))){
       bac.end <- nrow(c.f)
     }
-    
+    #subset to keep only the entries mapped to bacteria
     bac.reads <- c.f[(bac.start:bac.end),]  
     
     ### select counts and tax names
