@@ -141,7 +141,7 @@ workflow amplicon_analysis {
 
 		} else {
 
-			mapseq(fq2fq.out.reads)
+			mapseq(fq2fa.out.reads)
 			mapseq_ch = mapseq.out.bac_ssu.collect() 
 
 		}
