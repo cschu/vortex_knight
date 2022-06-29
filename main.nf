@@ -170,7 +170,6 @@ workflow {
 
 	        flagstats(fq2bam.out.reads)
 
-    	    count_reads_flagstats(flagstats.out.flagstats)
 			flagstat_results_ch = flagstats.out.flagstats
 				.concat(count_reads_flagstats.out.counts)
 				.concat(count_reads_flagstats.out.is_paired)
