@@ -171,8 +171,8 @@ workflow {
 	        flagstats(fq2bam.out.reads)
 
 			flagstat_results_ch = flagstats.out.flagstats
-				.concat(count_reads_flagstats.out.counts)
-				.concat(count_reads_flagstats.out.is_paired)
+				.concat(flagstats.out.counts)
+				.concat(flagstats.out.is_paired)
 				.map { sample, files -> files }
 			results_ch = results_ch.concat(flagstat_results_ch)
 
