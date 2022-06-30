@@ -28,7 +28,7 @@ process qc_bbduk_stepwise_amplicon {
 	ref_p3_r1 = ref_p5_r2
 	ref_p3_r2 = ref_p5_r1
 
-	if (params.single_end) {
+	if (!sample.is_paired) {
 		"""
 	    mkdir -p ${sample.id}
 		${bbduk_call} ${trim_params} in1=${sample.id}_R1.fastq.gz out1=${sample.id}/${sample.id}_R1.fastq.gz stats=${sample.id}/${sample.id}.fwd_bbduk_stats.txt lhist=${sample.id}/${sample.id}.p5_lhist.txt
