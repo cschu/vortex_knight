@@ -98,9 +98,10 @@ process collate_results {
 workflow {
 
 	fastq_ch = Channel
-		.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
+		//.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
+		.fromPath(params.input_dir + "/" + "**[._]{fastq.gz,fq.gz}")
 		.map { file ->
-				def sample = file.name.replaceAll(/.(fastq|fq)(.gz)?$/, "")
+				def sample = file.name.replaceAll(/.?(fastq|fq)(.gz)?$/, "")
 				sample = sample.replaceAll(/_R?[12]$/, "")
 				return tuple(sample, file)
 		}
