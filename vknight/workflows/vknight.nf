@@ -138,11 +138,13 @@ workflow amplicon_analysis {
 
 			mapseq_with_customdb(fq2fa.out.reads, params.mapseq_db)
 			mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect() 
+			out_ch = out_ch.concat(mapseq_with_customdb.out.bac_ssu)
 
 		} else {
 
 			mapseq(fq2fa.out.reads)
-			mapseq_ch = mapseq.out.bac_ssu.collect() 
+			mapseq_ch = mapseq.out.bac_ssu.collect()
+			out_ch = out_ch.concat(mapseq.out.bac_ssu)
 
 		}
 

@@ -198,6 +198,7 @@ workflow {
 	if (run_amplicon_analysis) {
 
 		amplicon_analysis(preprocessed_ch)
+		results_ch = results_ch.concat(amplicon_analysis.out.results)
 
 	}
 
