@@ -2,7 +2,7 @@
 
 nextflow.enable.dsl=2
 
-include { nevermore_simple_preprocessing } from "./nevermore/workflows/prep"
+include { nevermore_simple_preprocessing } from "./prep"
 include { remove_host_kraken2_individual; remove_host_kraken2 } from "./nevermore/modules/decon/kraken2"
 include { prepare_fastqs } from "./nevermore/modules/converters/prepare_fastqs"
 include { fastqc } from "./nevermore/modules/qc/fastqc"
