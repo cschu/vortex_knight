@@ -7,7 +7,6 @@ include { qc_bbduk_stepwise_amplicon } from "../modules/qc/bbduk_amplicon"
 include { qc_bbmerge } from "../modules/qc/bbmerge"
 include { fastqc } from "../modules/qc/fastqc"
 include { multiqc } from "../modules/qc/multiqc"
-include { classify_sample } from "../modules/functions"
 
 def merge_pairs = (params.merge_pairs || false)
 def keep_orphans = (params.keep_orphans || false)
