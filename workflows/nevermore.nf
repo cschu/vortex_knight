@@ -3,12 +3,12 @@
 nextflow.enable.dsl=2
 
 include { nevermore_simple_preprocessing } from "./prep"
-include { remove_host_kraken2_individual; remove_host_kraken2 } from "./nevermore/modules/decon/kraken2"
-include { prepare_fastqs } from "./nevermore/modules/converters/prepare_fastqs"
-include { fastqc } from "./nevermore/modules/qc/fastqc"
-include { multiqc } from "./nevermore/modules/qc/multiqc"
-include { collate_stats } from "./nevermore/modules/collate/collate" 
-include { nevermore_align } from "./nevermore/workflows/align"
+include { remove_host_kraken2_individual; remove_host_kraken2 } from "../modules/decon/kraken2"
+include { prepare_fastqs } from "../modules/converters/prepare_fastqs"
+include { fastqc } from "../modules/qc/fastqc"
+include { multiqc } from "../modules/qc/multiqc"
+include { collate_stats } from "../modules/collate/collate" 
+include { nevermore_align } from "./align"
 
 def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
 

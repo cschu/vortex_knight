@@ -2,11 +2,11 @@
 
 nextflow.enable.dsl=2
 
-include { fastqc } from "./nevermore/modules/qc/fastqc"
-include { multiqc } from "./nevermore/modules/qc/multiqc"
-include { bwa_mem_align } from "./nevermore/modules/align/bwa"
-include { merge_and_sort } from "./nevermore/modules/align/helpers"
-include { merge_single_fastqs } from "./nevermore/modules/converters/merge_fastqs"
+include { fastqc } from "../modules/qc/fastqc"
+include { multiqc } from "../modules/qc/multiqc"
+include { bwa_mem_align } from "../modules/align/bwa"
+include { merge_and_sort } from "../modules/align/helpers"
+include { merge_single_fastqs } from "../modules/converters/merge_fastqs"
 
 def config_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/config" : "${projectDir}/nevermore/config"
 
