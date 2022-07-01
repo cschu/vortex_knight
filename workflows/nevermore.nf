@@ -7,7 +7,7 @@ include { remove_host_kraken2_individual; remove_host_kraken2 } from "../modules
 include { prepare_fastqs } from "../modules/converters/prepare_fastqs"
 include { fastqc } from "../modules/qc/fastqc"
 include { multiqc } from "../modules/qc/multiqc"
-include { collate_stats } from "../modules/collate/collate" 
+include { collate_stats } from "../modules/collate"
 include { nevermore_align } from "./align"
 
 def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
