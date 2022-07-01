@@ -1,6 +1,5 @@
 process qc_bbduk_stepwise_amplicon {
 	label 'bbduk'
-	// publishDir path: params.output_dir, mode: params.publish_mode
 
     input:
     tuple val(sample), path(reads)
@@ -8,12 +7,12 @@ process qc_bbduk_stepwise_amplicon {
 
     output:
     tuple val(sample), path("qc_reads/${sample.id}/${sample.id}_R*.fastq.gz"), emit: reads
-    tuple val(sample), path("qc_reads/${sample.id}/${sample.id}_O.fastq.gz"), emit: orphans, optional: true
+    tuple val(sample), path("qc_reads/${sample.id}/${sample.id}.orphans_R1.fastq.gz"), emit: orphans, optional: true
     path("stats/qc/bbduk/${sample.id}/${sample.id}.*bbduk_stats.txt"), optional: true
     path("stats/qc/bbduk/${sample.id}/${sample.id}*lhist.txt"), emit: read_lengths, optional: true
 
     script:
-    def maxmem = task.memory.toString().replace(/ GB/, "g")
+	def maxmem = task.memory.toGiga()
 
 	if (params.primers) {
 		trim_params = "literal=${params.primers} minlength=${params.qc_minlen}"
@@ -24,11 +23,11 @@ process qc_bbduk_stepwise_amplicon {
 	def bbduk_call = "bbduk.sh -Xmx${maxmem} t=${task.cpus} ordered=t trd=t"
 
 	ref_p5_r1 = (params.primers) ? "literal=" + params.primers.split(",")[0] : "ref=${adapters}"
-	ref_p5_r2 = (params.primers && !params.single_end) ? "literal=" + params.primers.split(",")[1] : "ref=${adapters}"
+	ref_p5_r2 = (params.primers && !sample.is_paired) ? "literal=" + params.primers.split(",")[1] : "ref=${adapters}"
 	ref_p3_r1 = ref_p5_r2
 	ref_p3_r2 = ref_p5_r1
 
-	if (params.single_end) {
+	if (!sample.is_paired) {
 		"""
 	    mkdir -p ${sample.id}/
 		mkdir -p stats/qc/bbduk/
@@ -41,12 +40,13 @@ process qc_bbduk_stepwise_amplicon {
 	    mkdir -p ${sample.id}/
 		mkdir -p stats/qc/bbduk/
 		mkdir -p qc_reads/
+		mkdir -p tmp/
 		${bbduk_call} ${ref_p5_r1} minlength=${params.qc_minlen} ${params.p5_primer_params} in1=${sample.id}_R1.fastq.gz out1=fwd_p5.fastq.gz
 		${bbduk_call} ${ref_p5_r2} minlength=${params.qc_minlen} ${params.p5_primer_params} in1=${sample.id}_R2.fastq.gz out1=rev_p5.fastq.gz
 		${bbduk_call} ${ref_p3_r1} minlength=${params.qc_minlen} ${params.p3_primer_params} in1=fwd_p5.fastq.gz out1=fwd.fastq.gz
 		${bbduk_call} ${ref_p3_r2} minlength=${params.qc_minlen} ${params.p3_primer_params} in1=rev_p5.fastq.gz out1=rev.fastq.gz
-		gzip -dc fwd.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/1//' | sort > fwd.txt
-        gzip -dc rev.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/2//' | sort > rev.txt
+		gzip -dc fwd.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/1//' | sort -T tmp/ > fwd.txt
+        gzip -dc rev.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/2//' | sort -T tmp/ > rev.txt
 		join -1 1 -2 1 fwd.txt rev.txt > both.txt
 		seqtk subseq fwd.fastq.gz both.txt | gzip -c - > qc_reads/${sample.id}/${sample.id}_R1.fastq.gz
 		seqtk subseq rev.fastq.gz both.txt | gzip -c - > qc_reads/${sample.id}/${sample.id}_R2.fastq.gz
@@ -58,15 +58,16 @@ process qc_bbduk_stepwise_amplicon {
 	    mkdir -p ${sample.id}/
 		mkdir -p stats/qc/bbduk/
 		mkdir -p qc_reads/
+		mkdir -p tmp/
 		${bbduk_call} ${ref_p5_r1} minlength=${params.qc_minlen} ${params.p5_primer_params} in1=${sample.id}_R1.fastq.gz out1=fwd.fastq.gz
 		${bbduk_call} ${ref_p5_r2} minlength=${params.qc_minlen} ${params.p5_primer_params} in1=${sample.id}_R2.fastq.gz out1=rev.fastq.gz
-		gzip -dc fwd.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/1//' | sort > fwd.txt
-        gzip -dc rev.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/2//' | sort > rev.txt
+		gzip -dc fwd.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/1//' | sort -T tmp/ > fwd.txt
+        gzip -dc rev.fastq.gz | awk 'NR%4==1' | sed 's/^@//' | sed 's/\\/2//' | sort -T tmp/ > rev.txt
 		join -1 1 -2 1 fwd.txt rev.txt > both.txt
 		seqtk subseq fwd.fastq.gz both.txt | gzip -c - > qc_reads/${sample.id}/${sample.id}_R1.fastq.gz
 		seqtk subseq rev.fastq.gz both.txt | gzip -c - > qc_reads/${sample.id}/${sample.id}_R2.fastq.gz
-		${bbduk_call} in1=${sample.id}/${sample.id}_R1.fastq.gz lhist=stats/qc/bbduk/${sample.id}/${sample.id}_R1.post_lhist.txt
-		${bbduk_call} in1=${sample.id}/${sample.id}_R2.fastq.gz lhist=stats/qc/bbduk/${sample.id}/${sample.id}_R2.post_lhist.txt
+		${bbduk_call} in1=qc_reads/${sample.id}/${sample.id}_R1.fastq.gz lhist=stats/qc/bbduk/${sample.id}/${sample.id}_R1.post_lhist.txt
+		${bbduk_call} in1=qc_reads/${sample.id}/${sample.id}_R2.fastq.gz lhist=stats/qc/bbduk/${sample.id}/${sample.id}_R2.post_lhist.txt
 		"""
 	}
 }
