@@ -62,11 +62,11 @@ workflow nevermore_main {
 	
 		if (do_preprocessing) {
 	
-			collate_ch = nevermore_simple_preprocessing.out.read_counts
+			collate_ch = nevermore_simple_preprocessing.out.raw_counts
 				.map { sample, file -> return file }
 				.collect()
 				.concat(
-					nevermore_align.out.read_counts
+					nevermore_align.out.raw_counts
 						.map { sample, file -> return file }
 						.collect()
 				)
