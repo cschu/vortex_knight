@@ -66,7 +66,7 @@ workflow nevermore_main {
 				.map { sample, file -> return file }
 				.collect()
 				.concat(
-					nevermore_align.out.raw_counts
+					nevermore_align.out.read_counts
 						.map { sample, file -> return file }
 						.collect()
 				)
