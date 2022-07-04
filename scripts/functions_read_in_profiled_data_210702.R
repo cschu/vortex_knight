@@ -516,6 +516,8 @@ library(progress)
   #2) divide by total length of marker genes for the given species
   #3) multiply by average length of marker genes over all species in the DB
   
+  stopifnot(is_tibble(marker_genes.df))
+  
   file_list <- list.files(path=path_to_folder)
   message(paste0(length(file_list)," files in the given folder"))
   ### initialize output df
@@ -523,8 +525,9 @@ library(progress)
   ### iterate over every file and select counts at the selected tax level
   pb <- progress_bar$new(total=length(file_list))
   for(i in seq(1,length(file_list))){
+    #message(i)
     sample.name <- file_list[i]
-    
+
     tmp.file <- tryCatch(
       {data.table::fread(file = paste0(path_to_folder,sample.name),sep = "\t",skip = 1)},
       error=function(e){
@@ -586,7 +589,11 @@ library(progress)
     select(species,gene,read_count) %>%
     filter(species %in% (c.N_genes %>% filter(n>=min_genes) %>% pull(species)))
   
-  c.by_species
+  # #return NULL if minimal marker genes is not met by any taxon
+  # if(nrow(c.by_species)<1){
+  #   message("At selected tax.level no taxa meets the min.marker.gene criteria")
+  #   return(NULL)
+  # } 
   
   if(isTRUE(norm_to_gene_length)){
     #average read_counts over all marker genes and also consider number of marker genes with zero counts
@@ -605,7 +612,6 @@ library(progress)
       summarise(avg = median(read_count))
   }
   
-  
   #Select the taxonomic level of interest and sum up all the (normalized)counts up to the selected level
   c.tax.counts <-
     c.df %>%
@@ -613,7 +619,8 @@ library(progress)
     inner_join(.,c.by_species %>% select(species,avg)) %>%
     distinct() %>%
     group_by(!!as.symbol(tax.level)) %>%
-    summarise(!!file.name := round(sum(avg),0)) %>% 
+    #summarise(!!file.name := round(sum(avg),0)) %>%  #Do not round normalized counts since this could lead to false-zeros
+    summarise(!!file.name := sum(avg)) %>% 
     bind_rows(bact.counts,.)
   
   
