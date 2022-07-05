@@ -1,4 +1,4 @@
-include { run_gffquant; collate_feature_counts; } from "../modules/gffquant"
+include { run_gffquant; collate_feature_counts; } from "../modules/profilers/gffquant"
 
 
 workflow gffquant_flow {
