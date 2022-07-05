@@ -11,11 +11,9 @@ include { multiqc } from "../modules/qc/multiqc"
 def merge_pairs = (params.merge_pairs || false)
 def keep_orphans = (params.keep_orphans || false)
 
-def asset_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/assets" : "${projectDir}/nevermore/assets"
-def config_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/config" : "${projectDir}/nevermore/config"
+def asset_dir = "${projectDir}/nevermore/assets"
 
 print asset_dir
-print config_dir
 
 process concat_singles {
     input:
@@ -44,7 +42,7 @@ workflow nevermore_simple_preprocessing {
 
         multiqc(
             fastqc.out.stats.map { sample, report -> report }.collect(),
-			"${config_dir}/multiqc.config",
+			"${asset_dir}/multiqc.config",
 			"raw"
         )
 
