@@ -198,7 +198,9 @@ library(progress)
     c.f <-read.csv(paste0(path_to_folder,file_list[i]),header = FALSE,sep = "\t",comment.char = "",check.names = FALSE,col.names = var.names)
     c.f$tax.name <- str_replace_all(c.f$tax.name,pattern = " ",replacement = "")
     c.total.counts.mapped <- c.f %>% filter(tax.name == "root") %>% pull(counts.sum)
-    total.counts.mapped[i,2] <- c.total.counts.mapped
+    if(!(is_empty(c.total.counts.mapped))){
+      total.counts.mapped[i,2] <- c.total.counts.mapped
+    }  
     ### extract all bacterial counts
     bac.start <- which(c.f[,6] == "Bacteria")
     if(is_empty(bac.start)){
