@@ -2,6 +2,10 @@ Bootstrap: docker
 From: ubuntu:20.04
 IncludeCmd: yes
 
+%labels
+  MAINTAINER cschu (cschu1981@gmail.com)
+  VERSION v.0.2
+
 %environment
 #R_VERSION=4.1
 #export R_VERSION
@@ -21,6 +25,26 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
 
   apt-get install -y wget python3-pip git
 
+  # installing R
+  apt-get install -y wget nano
+  apt-get install -y libblas3 libblas-dev liblapack-dev liblapack3 curl
+  apt-get install -y gcc fort77 aptitude
+  aptitude install -y g++
+  aptitude install -y xorg-dev
+  aptitude install -y libreadline-dev
+  aptitude install -y gfortran
+  gfortran --version
+  apt-get install -y libssl-dev libxml2-dev libpcre3-dev liblzma-dev libbz2-dev libcurl4-openssl-dev 
+  apt-get install -y libhdf5-dev hdf5-helpers # libmariadb-client-lgpl-dev
+
+  apt-get install -y r-base r-base-dev
+  
+  R --version
+  
+  # installing packages from cran
+  R --slave -e 'install.packages(c("devtools", "tidyverse", "optparse", "stringr", "progress"), repos="https://cran.rstudio.com/")'
+
+  # installing profilers
   mkdir -p /opt/software
 
   # all the conda packages won't work together.. ><;
@@ -28,8 +52,7 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
   bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/software/miniconda3
   rm -f Miniconda3-latest-Linux-x86_64.sh
 
-  #/opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda 'samtools>=1.13' bwa kraken2 fastqc multiqc bbmap 'motus==2.6.0'
-
+  # install what you can via conda
   /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda hmmer 'samtools>=1.13' bwa kraken2 'gatk4==4.1.6.0-0' fastqc multiqc bbmap seqtk
 
   # read_counter installation
@@ -87,30 +110,3 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
   #  ./configure
   #  make 
   #  make install
-
-  
-
-  
-
-#  apt-get install -y wget nano
-#  apt-get install -y libblas3 libblas-dev liblapack-dev liblapack3 curl
-#  apt-get install -y gcc fort77 aptitude
-#  aptitude install -y g++
-#  aptitude install -y xorg-dev
-#  aptitude install -y libreadline-dev
-#  aptitude install -y gfortran
-#  gfortran --version
-#  apt-get install -y libssl-dev libxml2-dev libpcre3-dev liblzma-dev libbz2-dev libcurl4-openssl-dev 
-#  apt-get install -y libhdf5-dev hdf5-helpers libmariadb-client-lgpl-dev
-#
-#  apt-get install -y r-base r-base-dev
-#  
-#  R --version
-#  
-#  # installing packages from cran
-#  R --slave -e 'install.packages(c("devtools", "tidyverse", "cowplot"),repos="https://cran.rstudio.com/")'
-#
-#  # installing from bioc
-#  R --slave -e 'if (!requireNamespace("BiocManager",quietly=TRUE)) install.packages("BiocManager")'
-#  R --slave -e 'BiocManager::install(version = "3.13")'
-#  R --slave -e 'BiocManager::install(c("dada2"))'
