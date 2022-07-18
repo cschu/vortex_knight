@@ -21,7 +21,7 @@ IncludeCmd: yes
 #  add-apt-repository multiverse
 
   # General Utilities
-  apt-get install -y wget rsync git openssh-client build-essential python3-pip
+  apt-get install -y wget rsync git openssh-client build-essential python3-pip python3-dev
 
   # Specific libs for R packages to run
   #apt-get install -y texinfo texlive-latex-extra libmagick++-dev \
