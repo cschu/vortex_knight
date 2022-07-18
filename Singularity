@@ -16,7 +16,11 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
 
 %post
   apt-get update
-  apt-get install -y apt-transport-https apt-utils software-properties-common
+
+  apt-get install -y 
+  apt-get install -y dirmngr gnupg apt-transport-https ca-certificates software-properties-common apt-utils wget build-essential
+  # apt-get install -y apt-transport-https apt-utils software-properties-common
+
   apt-get install -y add-apt-key
   export DEBIAN_FRONTEND=noninteractive
   ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
@@ -25,17 +29,21 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
 
   apt-get install -y wget python3-pip git
 
+  add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/'
+
+
   # installing R
-  apt-get install -y wget nano
-  apt-get install -y libblas3 libblas-dev liblapack-dev liblapack3 curl
-  apt-get install -y gcc fort77 aptitude
-  aptitude install -y g++
-  aptitude install -y xorg-dev
-  aptitude install -y libreadline-dev
-  aptitude install -y gfortran
-  gfortran --version
-  apt-get install -y libssl-dev libxml2-dev libpcre3-dev liblzma-dev libbz2-dev libcurl4-openssl-dev 
-  apt-get install -y libhdf5-dev hdf5-helpers # libmariadb-client-lgpl-dev
+  # apt-get install -y wget nano
+
+  # apt-get install -y libblas3 libblas-dev liblapack-dev liblapack3 curl
+  # apt-get install -y gcc fort77 aptitude
+  # aptitude install -y g++
+  # aptitude install -y xorg-dev
+  # aptitude install -y libreadline-dev
+  # aptitude install -y gfortran
+  # gfortran --version
+  # apt-get install -y libssl-dev libxml2-dev libpcre3-dev liblzma-dev libbz2-dev libcurl4-openssl-dev 
+  # apt-get install -y libhdf5-dev hdf5-helpers # libmariadb-client-lgpl-dev
 
   apt-get install -y r-base r-base-dev
   
