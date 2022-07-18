@@ -18,8 +18,7 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
   apt-get update
 
   apt-get install -y 
-  apt-get install -y dirmngr gnupg apt-transport-https ca-certificates software-properties-common apt-utils wget build-essential
-  # apt-get install -y apt-transport-https apt-utils software-properties-common
+  apt-get install -y apt-transport-https apt-utils software-properties-common
 
   apt-get install -y add-apt-key
   export DEBIAN_FRONTEND=noninteractive
@@ -28,6 +27,8 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
   dpkg-reconfigure --frontend noninteractive tzdata
 
   apt-get install -y wget python3-pip git
+  apt-get install -y dirmngr gnupg ca-certificates software-properties-common wget build-essential
+
 
   add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/'
 
