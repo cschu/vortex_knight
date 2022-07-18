@@ -24,10 +24,10 @@ IncludeCmd: yes
   apt-get install -y wget rsync git openssh-client build-essential
 
   # Specific libs for R packages to run
-  apt-get install -y texinfo texlive-latex-extra libmagick++-dev \
-      libcairo2-dev libxt-dev \
-      libglu1-mesa-dev libgmp-dev libmpfr-dev libv8-dev \
-      libudunits2-dev gdal-bin libgdal-dev libglpk-dev libpoppler-cpp-dev
+  #apt-get install -y texinfo texlive-latex-extra libmagick++-dev \
+  #    libcairo2-dev libxt-dev \
+  #    libglu1-mesa-dev libgmp-dev libmpfr-dev libv8-dev \
+  #    libudunits2-dev gdal-bin libgdal-dev libglpk-dev libpoppler-cpp-dev
 
   # cleaning up
   apt-get autoremove --purge --yes
