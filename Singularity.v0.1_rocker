@@ -1,0 +1,50 @@
+Bootstrap: docker
+From: rocker/r-devel:latest
+IncludeCmd: yes
+
+# https://github.com/vibaotram/singularity-container/blob/master/Singularity.myR_4-0-2_rstudio_1.3
+
+
+%environment
+  R_VERSION=4.0.2
+  export R_VERSION
+  export PATH=$PATH
+
+%labels
+  Version v0.1.0
+  
+%post
+  apt-get update
+  apt-get install -y apt-transport-https apt-utils software-properties-common
+#  add-apt-repository main
+#  add-apt-repository universe
+#  add-apt-repository multiverse
+
+  # General Utilities
+  apt-get install -y wget rsync git openssh-client build-essential
+
+  # Specific libs for R packages to run
+  apt-get install -y texinfo texlive-latex-extra libmagick++-dev \
+      libcairo2-dev libxt-dev \
+      libglu1-mesa-dev libgmp-dev libmpfr-dev libv8-dev \
+      libudunits2-dev gdal-bin libgdal-dev libglpk-dev libpoppler-cpp-dev
+
+  # cleaning up
+  apt-get autoremove --purge --yes
+  apt-get clean
+
+  R --slave -e 'install.packages(c("devtools", "tidyverse", "optparse", "stringr", "progress"), repos="https://cran.rstudio.com/")'
+
+
+  # installing packages from cran
+  #install2.r --error \
+  #    --deps FALSE --skipinstalled \
+  #    Cairo \
+  #    svglite \
+  #    nloptr \
+  #    rgl \
+  #    fs \
+  #    BiocManager
+
+  # installing Bioconductor
+  #R --slave -e 'BiocManager::install(ask = FALSE)'
