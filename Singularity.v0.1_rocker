@@ -55,7 +55,16 @@ IncludeCmd: yes
   rm -f Miniconda3-latest-Linux-x86_64.sh
 
   # install what you can via conda
-  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda hmmer 'samtools>=1.13' bwa kraken2 'gatk4==4.1.6.0-0' fastqc multiqc bbmap seqtk
+  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda \
+  	'hmmer=3.3.2=h1b792b2_1' \
+	'samtools=1.13=h8c37831_0' \
+	'bwa=0.7.17=h5bf99c6_8' \
+	'kraken2=2.1.2=pl5262h7d875b9_0' \
+	'gatk4=4.1.6.0=py38_0' \
+	'fastqc=0.11.9=hdfd78af_1' \
+	'multiqc=1.11=pyhdfd78af_0' \
+	'bbmap=38.91=he522d1c_1' \
+	'seqtk=1.3=h5bf99c6_3'
 
   # read_counter installation
   cd /opt/software
