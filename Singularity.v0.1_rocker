@@ -95,7 +95,7 @@ IncludeCmd: yes
 
   ln -s /opt/software/vsearch/bin/vsearch /usr/bin/
   
-  pip install mTAGs
+  pip3 install mTAGs
   mtags download # <- this is stupid
 
 
