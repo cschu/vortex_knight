@@ -15,13 +15,13 @@ IncludeCmd: yes
   
 %post
   apt-get update
-  aptitude install -y apt-transport-https apt-utils software-properties-common wget rsync git openssh-client build-essential python3-pip python3-dev
+  apt-get install -y apt-transport-https apt-utils software-properties-common aptitude
 #  add-apt-repository main
 #  add-apt-repository universe
 #  add-apt-repository multiverse
 
   # General Utilities
-  # aptitude install -y wget rsync git openssh-client build-essential python3-pip python3-dev
+  aptitude install -y wget rsync git openssh-client build-essential python3-pip python3-dev
 
   # Specific libs for R packages to run
   #apt-get install -y texinfo texlive-latex-extra libmagick++-dev \
