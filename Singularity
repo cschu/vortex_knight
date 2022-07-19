@@ -32,23 +32,11 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
   apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
   add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/'
 
-
-  # installing R
-  # apt-get install -y wget nano
-
-  # apt-get install -y libblas3 libblas-dev liblapack-dev liblapack3 curl
-  # apt-get install -y gcc fort77 aptitude
-  # aptitude install -y g++
-  # aptitude install -y xorg-dev
-  # aptitude install -y libreadline-dev
-  # aptitude install -y gfortran
-  # gfortran --version
-  # apt-get install -y libssl-dev libxml2-dev libpcre3-dev liblzma-dev libbz2-dev libcurl4-openssl-dev 
-  # apt-get install -y libhdf5-dev hdf5-helpers # libmariadb-client-lgpl-dev
-
   apt-get install -y r-base r-base-dev
   
   R --version
+  python3 --version
+  python --version
   
   # installing packages from cran
   R --slave -e 'install.packages(c("devtools", "tidyverse", "optparse", "stringr", "progress"), repos="https://cran.rstudio.com/")'
@@ -62,7 +50,17 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
   rm -f Miniconda3-latest-Linux-x86_64.sh
 
   # install what you can via conda
-  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda hmmer 'samtools>=1.13' bwa kraken2 'gatk4==4.1.6.0-0' fastqc multiqc bbmap seqtk
+  # /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda hmmer 'samtools>=1.13' bwa kraken2 'gatk4==4.1.6.0-0' fastqc multiqc bbmap seqtk
+  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda \
+	  'hmmer=3.3.2=h1b792b2_1' \
+    'samtools=1.13=h8c37831_0' \
+    'bwa=0.7.17=h5bf99c6_8' \
+    'kraken2=2.1.2=pl5262h7d875b9_0' \
+    'gatk4=4.1.6.0=py38_0' \
+    'fastqc=0.11.9=hdfd78af_1' \
+    'multiqc=1.11=pyhdfd78af_0' \
+    'bbmap=38.91=he522d1c_1' \
+    'seqtk=1.3=h5bf99c6_3'
 
   # read_counter installation
   cd /opt/software
