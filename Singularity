@@ -36,8 +36,7 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
   
   R --version
   python3 --version
-  python --version
-  
+    
   # installing packages from cran
   R --slave -e 'install.packages(c("devtools", "tidyverse", "optparse", "stringr", "progress"), repos="https://cran.rstudio.com/")'
 
