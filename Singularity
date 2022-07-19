@@ -26,7 +26,7 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
   apt-get install -y tzdata
   dpkg-reconfigure --frontend noninteractive tzdata
 
-  apt-get install -y wget python3-pip git dirmngr gnupg ca-certificates build-essential libssl-dev libcurl4-gnutls-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev
+  apt-get install -y wget python3-pip git dirmngr gnupg ca-certificates build-essential libssl-dev libcurl4-gnutls-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
 
   apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
   add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/'
