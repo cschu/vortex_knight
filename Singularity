@@ -4,7 +4,7 @@ IncludeCmd: yes
 
 %labels
   MAINTAINER cschu (cschu1981@gmail.com)
-  VERSION v.0.2
+  VERSION v.0.3
 
 %environment
 #R_VERSION=4.1
@@ -89,7 +89,13 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
 
   ln -s /opt/software/vsearch/bin/vsearch /usr/bin/
   
-  pip install mTAGs
+
+  git clone https://github.com/cschu/mTAGs.git
+  cd mTAGs
+  git checkout feature/reactivate_readname_mapping_20220720
+  python3 setup.py bdist_wheel
+  pip3 install dist/*
+
   mtags download # <- this is stupid
 
 
