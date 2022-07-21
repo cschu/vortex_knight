@@ -131,6 +131,9 @@ library(progress)
       select(-tax_info) %>% 
       filter(str_detect(kingdom,pattern = "Bacteria")) %>%
       group_by(!!as.symbol(tax.lvl)) %>%
+      mutate(!!as.symbol(tax.lvl) := str_remove(!!as.symbol(tax.lvl),pattern = "[a-zA-Z]__")) %>% ##remove "g__" from tax.lvl column name
+      mutate(!!as.symbol(tax.lvl) := case_when(!!as.symbol(tax.lvl) == "" ~ NA_character_,
+                                               TRUE~!!as.symbol(tax.lvl))) %>% 
       summarize(counts = length(read_id)) %>%
       arrange(desc(counts)) %>% 
       mutate(!!tax.lvl := case_when(!(is.na(!!as.symbol(tax.lvl))) ~ !!as.symbol(tax.lvl),
@@ -144,9 +147,6 @@ library(progress)
     if(isTRUE(account_for_paired_reads) & sample.type=="paired"){
       tax.counts <- tax.counts %>% mutate(counts = round(counts/2,0))
     }
-    
-    #remove "g__" from tax.lvl column name
-    tax.counts[[tax.lvl]] <- str_remove(tax.counts[[tax.lvl]],pattern = "[a-zA-Z]__")
     colnames(tax.counts)[2] <- c.sample
     
     res.df <- suppressMessages(full_join(res.df,tax.counts,by=tax.lvl))
