@@ -8,7 +8,7 @@ process qc_bbmerge {
     tuple val(sample), path("${sample}/${sample}_R*.fastq.gz"), optional: true, emit: pairs
 
     script:
-	def maxmem = task.memory.toGiga()
+    def maxmem = task.memory.toGiga()
     def merge_params = "rsem=t extend2=20 iterations=5 ecct vstrict"
 
     """

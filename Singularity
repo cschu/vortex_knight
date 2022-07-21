@@ -92,7 +92,8 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
 
   git clone https://github.com/cschu/mTAGs.git
   cd mTAGs
-  git checkout feature/reactivate_readname_mapping_20220720
+  git checkout 15fe1779726722854f87a952da7c78a661235fcd
+  # git checkout feature/reactivate_readname_mapping_20220720
   python3 setup.py bdist_wheel
   pip3 install dist/*
 

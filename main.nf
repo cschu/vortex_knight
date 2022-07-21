@@ -2,12 +2,14 @@
 
 nextflow.enable.dsl=2
 
-include { bam2fq; fq2bam; prepare_fastqs } from "./modules/vknight/convert"
-include { nevermore_simple_preprocessing } from "./workflows/nevermore/nevermore"
-include { amplicon_analysis; bam_analysis; fastq_analysis } from "./workflows/vknight/vknight"
-include { classify_sample } from "./modules/nevermore/functions"
-include { remove_host_kraken2 } from "./modules/nevermore/decon/kraken2"
-include { flagstats; count_reads_flagstats } from "./modules/vknight/stats"
+include { bam2fq } from "./nevermore/nevermore/modules/converters/bam2fq"
+include { fq2bam } from "./nevermore/nevermore/modules/converters/fq2bam"
+include { prepare_fastqs } from "./nevermore/nevermore/modules/converters/prepare_fastqs"
+include { nevermore_simple_preprocessing } from "./nevermore/nevermore/workflows/nevermore"
+include { amplicon_analysis; bam_analysis; fastq_analysis } from "./vknight/workflows/vknight"
+include { classify_sample } from "./nevermore/nevermore/modules/functions"
+include { remove_host_kraken2; remove_host_kraken2_individual } from "./nevermore/nevermore/modules/decon/kraken2"
+include { flagstats } from "./nevermore/nevermore/modules/stats"
 
 
 def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2) && !params.amplicon_seq;
@@ -96,9 +98,10 @@ process collate_results {
 workflow {
 
 	fastq_ch = Channel
-		.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
+		//.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
+		.fromPath(params.input_dir + "/" + "**[._]{fastq.gz,fq.gz}")
 		.map { file ->
-				def sample = file.name.replaceAll(/.(fastq|fq)(.gz)?$/, "")
+				def sample = file.name.replaceAll(/.?(fastq|fq)(.gz)?$/, "")
 				sample = sample.replaceAll(/_R?[12]$/, "")
 				return tuple(sample, file)
 		}
@@ -127,19 +130,28 @@ workflow {
 		raw_fastq_ch = prepare_fastqs.out.reads.concat(bfastq_ch)
 
 		nevermore_simple_preprocessing(raw_fastq_ch)
+
+		preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
 		results_ch = results_ch
 			.concat(nevermore_simple_preprocessing.out.raw_counts)
 			.map { sample, files -> files }
 
 		if (params.remove_host) {
 
-			remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+			if (params.remove_host == "individual") {
 
-			preprocessed_ch = remove_host_kraken2.out.reads
+				remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
 
-		} else {
+				preprocessed_ch = remove_host_kraken2_individual.out.reads
 
-			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+
+			} else if (params.remove_host == "pair") {
+
+				remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+
+				preprocessed_ch = remove_host_kraken2.out.reads
+
+			}
 
 		}
 
@@ -159,10 +171,9 @@ workflow {
 
 	        flagstats(fq2bam.out.reads)
 
-    	    count_reads_flagstats(flagstats.out.flagstats)
 			flagstat_results_ch = flagstats.out.flagstats
-				.concat(count_reads_flagstats.out.counts)
-				.concat(count_reads_flagstats.out.is_paired)
+				.concat(flagstats.out.counts)
+				.concat(flagstats.out.is_paired)
 				.map { sample, files -> files }
 			results_ch = results_ch.concat(flagstat_results_ch)
 
@@ -187,6 +198,7 @@ workflow {
 	if (run_amplicon_analysis) {
 
 		amplicon_analysis(preprocessed_ch)
+		results_ch = results_ch.concat(amplicon_analysis.out.results)
 
 	}
 

@@ -9,13 +9,15 @@ process mapseq {
     path("${sample.id}/${sample.id}_R*bac_ssu.mseq"), emit: bac_ssu
 
     script:
-	def r2_cmd = (sample.is_paired) ? "${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R2.fastq.gz_bac_ssu.fasta > ${sample.id}/${sample.id}_R2_bac_ssu.mseq" : ""
+	// def r2_cmd = (sample.is_paired) ? "${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R2.fastq.gz_bac_ssu.fasta > ${sample.id}/${sample.id}_R2_bac_ssu.mseq" : ""
+	def r2_cmd = (sample.is_paired) ? "${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R2*.fasta > ${sample.id}/${sample.id}_R2_bac_ssu.mseq" : ""
 
 	"""
     mkdir -p ${sample.id}
-    ${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R1.fastq.gz_bac_ssu.fasta > ${sample.id}/${sample.id}_R1_bac_ssu.mseq
+    ${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R1*.fasta > ${sample.id}/${sample.id}_R1_bac_ssu.mseq
 	${r2_cmd}
 	"""
+    // ${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R1.fastq.gz_bac_ssu.fasta > ${sample.id}/${sample.id}_R1_bac_ssu.mseq
 }
 
 
@@ -32,13 +34,15 @@ process mapseq_with_customdb {
 
 	script:
 	def db_string = "${db}/*.fna ${db}/*.tax"
-	def r2_cmd = (sample.is_paired) ? "${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R2.fastq.gz_bac_ssu.fasta ${db_string} > ${sample.id}/${sample.id}_R2_bac_ssu.mseq" : ""
+	// def r2_cmd = (sample.is_paired) ? "${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R2.fastq.gz_bac_ssu.fasta ${db_string} > ${sample.id}/${sample.id}_R2_bac_ssu.mseq" : ""
+	def r2_cmd = (sample.is_paired) ? "${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R2*.fasta ${db_string} > ${sample.id}/${sample.id}_R2_bac_ssu.mseq" : ""
 
 	"""
     mkdir -p ${sample.id}                                                                                               	
-    ${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R1.fastq.gz_bac_ssu.fasta ${db_string} > ${sample.id}/${sample.id}_R1_bac_ssu.mseq
+    ${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R1*.fasta ${db_string} > ${sample.id}/${sample.id}_R1_bac_ssu.mseq
 	${r2_cmd}
 	"""
+    //${params.mapseq_bin} -nthreads ${task.cpus} --outfmt simple ${sample.id}_R1.fastq.gz_bac_ssu.fasta ${db_string} > ${sample.id}/${sample.id}_R1_bac_ssu.mseq
 }
 
 
