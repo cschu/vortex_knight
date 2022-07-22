@@ -8,7 +8,7 @@ include { motus2 } from  "../modules/profilers/motus2"
 include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules/profilers/mapseq"
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
-include { fq2fa } from "../../nevermore/nevermore/modules/converters/fq2fa"
+include { fq2fa } from "../../nevermore/modules/converters/fq2fa"
 
 
 if (!params.publish_mode) {
