@@ -2,14 +2,14 @@
 
 nextflow.enable.dsl=2
 
-include { bam2fq } from "./nevermore/nevermore/modules/converters/bam2fq"
-include { fq2bam } from "./nevermore/nevermore/modules/converters/fq2bam"
-include { prepare_fastqs } from "./nevermore/nevermore/modules/converters/prepare_fastqs"
-include { nevermore_simple_preprocessing } from "./nevermore/nevermore/workflows/nevermore"
+include { bam2fq } from "./nevermore/modules/converters/bam2fq"
+include { fq2bam } from "./nevermore/modules/converters/fq2bam"
+include { prepare_fastqs } from "./nevermore/modules/converters/prepare_fastqs"
+include { nevermore_simple_preprocessing } from "./nevermore/workflows/nevermore"
 include { amplicon_analysis; bam_analysis; fastq_analysis } from "./vknight/workflows/vknight"
-include { classify_sample } from "./nevermore/nevermore/modules/functions"
-include { remove_host_kraken2; remove_host_kraken2_individual } from "./nevermore/nevermore/modules/decon/kraken2"
-include { flagstats } from "./nevermore/nevermore/modules/stats"
+include { classify_sample } from "./nevermore/modules/functions"
+include { remove_host_kraken2; remove_host_kraken2_individual } from "./nevermore/modules/decon/kraken2"
+include { flagstats } from "./nevermore/modules/stats"
 
 
 def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2) && !params.amplicon_seq;
