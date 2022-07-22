@@ -115,11 +115,12 @@ workflow {
 			return tuple(sample, file)
 		}
 		.groupTuple(sort: true)
+		.map { classify_sample(it[0], it[1]) }
 
 	bam2fq(bam_ch)
 
 	bfastq_ch = bam2fq.out.reads
-		.map { classify_sample(it[0], it[1]) }
+		.map { classify_sample(it[0].id, it[1]) }
 
 	prepare_fastqs(fastq_ch)
 
