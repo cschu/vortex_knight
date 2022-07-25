@@ -71,9 +71,6 @@ process collate_results {
 	mkdir -p read_counter/
 	(mv *read_counter.txt read_counter/) || :
 
-	mkdir -p mtags_extract_fastq/
-	(mv *bac_ssu.fasta mtags_extract_fastq/) || :
-
 	mkdir -p raw_counts/
 	(mv *.txt raw_counts/) || :
 
