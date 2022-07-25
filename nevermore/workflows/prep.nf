@@ -7,16 +7,13 @@ include { qc_bbduk_stepwise_amplicon } from "../modules/qc/bbduk_amplicon"
 include { qc_bbmerge } from "../modules/qc/bbmerge"
 include { fastqc } from "../modules/qc/fastqc"
 include { multiqc } from "../modules/qc/multiqc"
-include { classify_sample } from "../modules/functions"
 
 def merge_pairs = (params.merge_pairs || false)
 def keep_orphans = (params.keep_orphans || false)
 
-def asset_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/assets" : "${projectDir}/nevermore/assets"
-def config_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/config" : "${projectDir}/nevermore/config"
+def asset_dir = "${projectDir}/nevermore/assets"
 
 print asset_dir
-print config_dir
 
 process concat_singles {
     input:
@@ -41,11 +38,12 @@ workflow nevermore_simple_preprocessing {
 
 	main:
 
-		fastqc(fastq_ch)
+		fastqc(fastq_ch, "raw")
 
         multiqc(
-            fastqc.out.reports.map { sample, report -> report }.collect(),
-			"${config_dir}/multiqc.config"
+            fastqc.out.stats.map { sample, report -> report }.collect(),
+			"${asset_dir}/multiqc.config",
+			"raw"
         )
 
 		processed_reads_ch = Channel.empty()
@@ -77,7 +75,6 @@ workflow nevermore_simple_preprocessing {
 		main_reads_out = processed_reads_ch
 		orphan_reads_out = orphans_ch
 		raw_counts = rawcounts_ch
-		
 
 }
 
