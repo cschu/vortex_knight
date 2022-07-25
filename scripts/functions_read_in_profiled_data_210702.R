@@ -323,7 +323,7 @@ library(progress)
   rownames(score.mat) <- (score.df$tax.name)
   score.mat[is.na(score.mat)] <- 0
   #remove all-zero rows
-  score.mat <- score.mat[rowSums(score.mat)>0,]
+  score.mat <- score.mat[rowSums(score.mat)>0,,drop=F]
   #remove everything after the first point in the samplenames
   colnames(score.mat) <- sub(colnames(score.mat),pattern = ".pathseq.scores",replacement = "")
   
@@ -331,7 +331,7 @@ library(progress)
   counts.mat <- as.matrix(counts.df[,-1])
   rownames(counts.mat) <- (counts.df$tax.name)
   counts.mat[is.na(counts.mat)] <- 0
-  counts.mat <- counts.mat[rowSums(counts.mat)>0,]
+  counts.mat <- counts.mat[rowSums(counts.mat)>0,,drop=F]
   #remove everything after the first point in the samplenames
   colnames(counts.mat) <- sub(colnames(counts.mat),pattern = ".pathseq.scores",replacement = "")
   
