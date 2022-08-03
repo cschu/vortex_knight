@@ -2,6 +2,8 @@ library(stringr)
 library(progress)
 
 .f_read_in_files_mapseq <- function(path_to_folder){
+  #Deprecated since vknight uses by default mapseq with --outfmt simepl (-> read in funciton for that is called ".f_read_in_mapseq_raw")
+  #Attention: This function refers to the "default" mapseq output and not the mapseq output generated via --outfmt simple
   # reads in mapseq output file; attention: in mapseq output file, the first two lines are commented out (with a "#"); 
   # The first line (showing the processing data and mapseq version) will be ignored
   # The second line, giving the total sum of counts, will be added to the output matrix
@@ -140,7 +142,7 @@ library(progress)
                                     TRUE ~ "not_resolved"))
     rm(c.combined,c.fwd,c.rev)
     #add bacterial counts
-    bact.counts <- tibble(genus = "Bacteria",counts = sum(tax.counts$counts))
+    bact.counts <- tibble(!!as.symbol(tax.lvl) := "Bacteria",counts = sum(tax.counts$counts))
     tax.counts <- bind_rows(bact.counts,tax.counts)
     
     #If reads are paired, divide counts by 2 (assuming )
@@ -155,6 +157,7 @@ library(progress)
   }
   
   #create output matrix
+  
   res.mat <- 
     res.df %>% 
     as.data.frame() %>% 
@@ -169,13 +172,8 @@ library(progress)
 .f_read_in_files_kraken2 <- function(path_to_folder,tax.level){
   ### Read in kraken2 result files and return matrix with counts per bacteria and sample
   
-  if(tax.level == "genus"){
-    tax.sym <- "G"
-  }else if(tax.level == "species"){
-    tax.sym <- "S"
-  }else{
-    stop("Please enter a tax level (genus or species)")
-  }
+  #convert tax.level to kraken2 compatible taxonoic symbol in order to subset the DF
+  tax.sym <- toupper(str_extract(tax.level,pattern = "^[A-z]"))
   
   var.names <- c("pct.total","counts.sum","counts.only.here","tax.symbol","tax.ID","tax.name")
   file_list <- list.files(path=path_to_folder)  
@@ -253,13 +251,8 @@ library(progress)
   if(is_empty(file_list)){
     file_list <- list.files(path=path_to_folder,pattern = "\\.scores$")  
   }
-  if(tax.level == "genus"){
-    tax.sym <- "genus"
-  }else if(tax.level == "species"){
-    tax.sym <- "species"
-  }else{
-    stop("Please enter a tax level (genus or species)")
-  }
+  
+  tax.sym <- tax.level
   
   ### initialize output df
   score.df <- tibble(tax.name = character(0),tax_id=double(0))
@@ -523,7 +516,7 @@ library(progress)
   file_list <- list.files(path=path_to_folder)
   message(paste0(length(file_list)," files in the given folder"))
   ### initialize output df
-  counts.df <- tibble(genus = character(0))
+  counts.df <- tibble(!!as.symbol(tax.level) := character(0))
   ### iterate over every file and select counts at the selected tax level
   pb <- progress_bar$new(total=length(file_list))
   for(i in seq(1,length(file_list))){
