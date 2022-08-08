@@ -459,10 +459,16 @@ library(progress)
   file_list <- list.files(path_to_folder)
   df.lib_layout <- tibble()
   for(i in seq(1,length(file_list))){
-    tmp.file <- read.table(paste0(path_to_folder,file_list[i]),sep = "\t",comment.char = "",header = F)
-    tmp.file$ID <- sub(file_list[i],pattern = ".is_paired.txt",replacement = "")
-    colnames(tmp.file)[1] <- "lib_layout"
-    df.lib_layout <- bind_rows(df.lib_layout,tmp.file)
+    #message(i)
+    if(file.info(paste0(path_to_folder,file_list[i]))$size==0){
+      message(paste0("Sample ",file_list[i]," is empty - skipping"))
+      next
+    }else{
+      tmp.file <- read.table(paste0(path_to_folder,file_list[i]),sep = "\t",comment.char = "",header = F)
+      tmp.file$ID <- sub(file_list[i],pattern = ".is_paired.txt",replacement = "")
+      colnames(tmp.file)[1] <- "lib_layout"
+      df.lib_layout <- bind_rows(df.lib_layout,tmp.file)
+    }
   }
   df.lib_layout <- df.lib_layout %>% relocate(ID)
   return(df.lib_layout)
