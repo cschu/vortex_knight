@@ -1,0 +1,8 @@
+name: vortex_knight
+channels:
+ - bioconda
+ - conda-forge
+ - defaults
+dependencies:
+ - python>=3.7
+ - nextflow>=21.10.4
