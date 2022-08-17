@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 include { kraken2 } from  "../modules/profilers/kraken2"
 include { mtags_extract; mtags_annotate; mtags_merge } from "../modules/profilers/mtags"
-include { motus2 } from  "../modules/profilers/motus2"
+include { motus } from  "../modules/profilers/motus"
 include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules/profilers/mapseq"
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
@@ -21,12 +21,12 @@ if (!params.output_dir) {
 
 output_dir = "${params.output_dir}"
 
-if (!params.motus2_min_length) {
-	params.motus2_min_length = 30
+if (!params.motus_min_length) {
+	params.motus_min_length = 30
 }
 
-if (!params.motus2_n_marker_genes) {
-	params.motus2_n_marker_genes = 1
+if (!params.motus_n_marker_genes) {
+	params.motus_n_marker_genes = 1
 }
 
 if (!params.pathseq_min_clipped_read_length) {
@@ -36,7 +36,7 @@ if (!params.pathseq_min_clipped_read_length) {
 def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2);
 def run_mtags = (!params.skip_mtags || params.run_mtags);
 def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && params.mapseq_bin)
-def run_motus2 = (!params.skip_motus2 || params.run_motus2);
+def run_motus = (!params.skip_motus || params.run_motus);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
 
@@ -72,9 +72,9 @@ workflow fastq_analysis {
 			out_ch = out_ch.concat(kraken2.out.kraken2_out)
 		}
 
-		if (run_motus2) {
-			motus2(fastq_ch, params.motus_database)
-			out_ch = out_ch.concat(motus2.out.motus_out)
+		if (run_motus) {
+			motus(fastq_ch, params.motus_database)
+			out_ch = out_ch.concat(motus.out.motus_out)
 		}
 
 		if (run_read_counter) {
