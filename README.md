@@ -63,7 +63,7 @@ The output folder contains:
 * a subdirectory per sample (named `<sample>`) with
   * the kraken2 report `<sample>.kraken2_report.txt`
   * the library size `<sample>.libsize.txt`
-  * the mOTUs2 report `<sample>.motus.txt`
+  * the mOTUs report `<sample>.motus.txt`
   * pathseq output
     - `<sample>.pathseq.bam`
     - `<sample>.pathseq.bam.sgi`
