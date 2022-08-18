@@ -88,9 +88,9 @@ workflow vknight_main {
 
 		if (do_preprocessing) {
 
-			raw_fastq_ch = fastq_ch.out.fastqs.concat(bfastq_ch)
+			//raw_fastq_ch = fastq_ch.out.fastqs.concat(bfastq_ch)
 
-			nevermore_simple_preprocessing(raw_fastq_ch)
+			nevermore_simple_preprocessing(fastq_ch)
 
 			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
 			results_ch = results_ch
@@ -194,7 +194,6 @@ workflow {
 	if (params.run_vknight) {
 		vknight_main(fastq_ch)
 	}
-
 
 }
 
