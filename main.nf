@@ -179,15 +179,15 @@ workflow vknight_main {
 
 workflow {
 
-	fastq_ch = fastq_input(
+	fastq_input(
 		Channel.fromPath(fastq_input_pattern)
 	)
 
-	bfastq_ch = bam_input(
+	bam_input(
 		Channel.fromPath(bam_input_pattern)
 	)
 
-	fastq_ch = fastq_ch.out.fastqs.concat(bfastq_ch.out.bamfiles)
+	fastq_ch = fastq_input.out.fastqs.concat(bam_input.out.bamfiles)
 	fastq_ch.view()
 
 	if (params.run_vknight) {
