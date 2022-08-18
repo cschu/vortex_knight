@@ -55,7 +55,7 @@ process transfer_bams {
 	script:
 		"""
 		mkdir -p bam/
-		find . -maxdepth 1 -type l -name '*.bam' | xargs -I {} cp -v {} bam/
+		find . -maxdepth 1 -type l -name '*.bam' | xargs -I {} rsync -avP \$(readlink {}) bam/
 		"""
 }
 
@@ -79,6 +79,103 @@ workflow bam_input {
 		bamfiles = bam_ch
 }
 
+workflow vknight_main {
+	take:
+		fastq_ch
+	main:
+		results_ch = Channel.empty()
+
+		if (do_preprocessing) {
+
+			raw_fastq_ch = fastq_ch.out.fastqs.concat(bfastq_ch)
+
+			nevermore_simple_preprocessing(raw_fastq_ch)
+
+			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+			results_ch = results_ch
+				.concat(nevermore_simple_preprocessing.out.raw_counts)
+				.map { sample, files -> files }
+
+			if (params.remove_host) {
+
+				if (params.remove_host == "individual") {
+
+					remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+
+					preprocessed_ch = remove_host_kraken2_individual.out.reads
+
+
+				} else if (params.remove_host == "pair") {
+
+					remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+
+					preprocessed_ch = remove_host_kraken2.out.reads
+
+				}
+
+			}
+
+		} else {
+
+			preprocessed_ch = fastq_ch.out.fastqs
+				.concat(bfastq_ch)
+
+		}
+
+
+		if (get_basecounts || run_bam_analysis) {
+
+			fq2bam(preprocessed_ch)
+
+			if (get_basecounts) {
+
+				flagstats(fq2bam.out.reads)
+
+				flagstat_results_ch = flagstats.out.flagstats
+					.concat(flagstats.out.counts)
+					.concat(flagstats.out.is_paired)
+					.map { sample, files -> files }
+				results_ch = results_ch.concat(flagstat_results_ch)
+
+			}
+
+			if (run_bam_analysis) {
+
+				bam_analysis(fq2bam.out.reads)
+				results_ch = results_ch.concat(bam_analysis.out.results)
+
+			}
+
+		}
+
+		if (run_fastq_analysis) {
+
+			fastq_analysis(preprocessed_ch)
+			results_ch = results_ch.concat(fastq_analysis.out.results)
+
+		}
+
+		if (run_amplicon_analysis) {
+
+			amplicon_analysis(preprocessed_ch)
+			results_ch = results_ch.concat(amplicon_analysis.out.results)
+
+		}
+
+		if (!params.skip_collate) {
+			collate_results(
+				results_ch.collect(),
+				"${projectDir}/scripts/ExtractProfiledCounts_210823.R",
+				params.GTDB_markers
+			)
+		}
+	
+	emit:
+		results = results_ch
+
+
+}
+
 
 workflow {
 
@@ -86,129 +183,139 @@ workflow {
 		Channel.fromPath(fastq_input_pattern)
 	)
 
-	bam_ch = bam_input(
+	bfastq_ch = bam_input(
 		Channel.fromPath(bam_input_pattern)
 	)
 
-	/*bam2fq(bam_ch.out.bamfiles)
+	fastq_ch = fastq_ch.out.fastqs.concat(bfastq_ch.out.bamfiles)
+	fastq_ch.view()
 
-	bfastq_ch = bam2fq.out.reads
-		.map { classify_sample(it[0].id, it[1]) } */
-
-	/*fastq_ch = Channel
-		//.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
-		.fromPath(params.input_dir + "/" + "**[._]{fastq.gz,fq.gz}")
-		.map { file ->
-				def sample = file.name.replaceAll(/.?(fastq|fq)(.gz)?$/, "")
-				sample = sample.replaceAll(/_R?[12]$/, "")
-				return tuple(sample, file)
-		}
-		.groupTuple(sort: true)
-        .map { classify_sample(it[0], it[1]) }
-
-	bam_ch = Channel
-		.fromPath(params.input_dir + "/" + "**.bam")
-		.map { file ->
-			def sample = file.name.replaceAll(/.bam$/, "")
-			return tuple(sample, file)
-		}
-		.groupTuple(sort: true)
-		.map { classify_sample(it[0], it[1]) }
-
-	bam2fq(bam_ch)
-
-	bfastq_ch = bam2fq.out.reads
-		.map { classify_sample(it[0].id, it[1]) }
-
-	prepare_fastqs(fastq_ch)  */
-
-	results_ch = Channel.empty()
-
-	if (do_preprocessing) {
-
-		// raw_fastq_ch = prepare_fastqs.out.reads.concat(bfastq_ch)
-		raw_fastq_ch = fastq_ch.out.fastqs.concat(bfastq_ch)
-
-		nevermore_simple_preprocessing(raw_fastq_ch)
-
-		preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
-		results_ch = results_ch
-			.concat(nevermore_simple_preprocessing.out.raw_counts)
-			.map { sample, files -> files }
-
-		if (params.remove_host) {
-
-			if (params.remove_host == "individual") {
-
-				remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
-
-				preprocessed_ch = remove_host_kraken2_individual.out.reads
-
-
-			} else if (params.remove_host == "pair") {
-
-				remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
-
-				preprocessed_ch = remove_host_kraken2.out.reads
-
-			}
-
-		}
-
-	} else {
-
-		//preprocessed_ch = prepare_fastqs.out.reads
-		preprocessed_ch = fastq_ch.out.fastqs
-			.concat(bfastq_ch)
-
+	if (params.run_vknight) {
+		vknight_main(fastq_ch)
 	}
 
-
-	if (get_basecounts || run_bam_analysis) {
-
-		fq2bam(preprocessed_ch)
-
-		if (get_basecounts) {
-
-	        flagstats(fq2bam.out.reads)
-
-			flagstat_results_ch = flagstats.out.flagstats
-				.concat(flagstats.out.counts)
-				.concat(flagstats.out.is_paired)
-				.map { sample, files -> files }
-			results_ch = results_ch.concat(flagstat_results_ch)
-
-		}
-
-		if (run_bam_analysis) {
-
-			bam_analysis(fq2bam.out.reads)
-			results_ch = results_ch.concat(bam_analysis.out.results)
-
-		}
-
-    }
-
-	if (run_fastq_analysis) {
-
-		fastq_analysis(preprocessed_ch)
-		results_ch = results_ch.concat(fastq_analysis.out.results)
-
-	}
-
-	if (run_amplicon_analysis) {
-
-		amplicon_analysis(preprocessed_ch)
-		results_ch = results_ch.concat(amplicon_analysis.out.results)
-
-	}
-
-	if (!params.skip_collate) {
-		collate_results(
-			results_ch.collect(),
-			"${projectDir}/scripts/ExtractProfiledCounts_210823.R",
-			params.GTDB_markers
-		)
-	}
 
 }
+
+// 		/*bam2fq(bam_ch.out.bamfiles)
+
+// 	bfastq_ch = bam2fq.out.reads
+// 		.map { classify_sample(it[0].id, it[1]) } */
+
+// 	/*fastq_ch = Channel
+// 		//.fromPath(params.input_dir + "/" + "**.{fastq,fq,fastq.gz,fq.gz}")
+// 		.fromPath(params.input_dir + "/" + "**[._]{fastq.gz,fq.gz}")
+// 		.map { file ->
+// 				def sample = file.name.replaceAll(/.?(fastq|fq)(.gz)?$/, "")
+// 				sample = sample.replaceAll(/_R?[12]$/, "")
+// 				return tuple(sample, file)
+// 		}
+// 		.groupTuple(sort: true)
+//         .map { classify_sample(it[0], it[1]) }
+
+// 	bam_ch = Channel
+// 		.fromPath(params.input_dir + "/" + "**.bam")
+// 		.map { file ->
+// 			def sample = file.name.replaceAll(/.bam$/, "")
+// 			return tuple(sample, file)
+// 		}
+// 		.groupTuple(sort: true)
+// 		.map { classify_sample(it[0], it[1]) }
+
+// 	bam2fq(bam_ch)
+
+// 	bfastq_ch = bam2fq.out.reads
+// 		.map { classify_sample(it[0].id, it[1]) }
+
+// 	prepare_fastqs(fastq_ch)  */
+
+// 	results_ch = Channel.empty()
+
+// 	if (do_preprocessing) {
+
+// 		// raw_fastq_ch = prepare_fastqs.out.reads.concat(bfastq_ch)
+// 		raw_fastq_ch = fastq_ch.out.fastqs.concat(bfastq_ch)
+
+// 		nevermore_simple_preprocessing(raw_fastq_ch)
+
+// 		preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+// 		results_ch = results_ch
+// 			.concat(nevermore_simple_preprocessing.out.raw_counts)
+// 			.map { sample, files -> files }
+
+// 		if (params.remove_host) {
+
+// 			if (params.remove_host == "individual") {
+
+// 				remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+
+// 				preprocessed_ch = remove_host_kraken2_individual.out.reads
+
+
+// 			} else if (params.remove_host == "pair") {
+
+// 				remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+
+// 				preprocessed_ch = remove_host_kraken2.out.reads
+
+// 			}
+
+// 		}
+
+// 	} else {
+
+// 		//preprocessed_ch = prepare_fastqs.out.reads
+// 		preprocessed_ch = fastq_ch.out.fastqs
+// 			.concat(bfastq_ch)
+
+// 	}
+
+
+// 	if (get_basecounts || run_bam_analysis) {
+
+// 		fq2bam(preprocessed_ch)
+
+// 		if (get_basecounts) {
+
+// 	        flagstats(fq2bam.out.reads)
+
+// 			flagstat_results_ch = flagstats.out.flagstats
+// 				.concat(flagstats.out.counts)
+// 				.concat(flagstats.out.is_paired)
+// 				.map { sample, files -> files }
+// 			results_ch = results_ch.concat(flagstat_results_ch)
+
+// 		}
+
+// 		if (run_bam_analysis) {
+
+// 			bam_analysis(fq2bam.out.reads)
+// 			results_ch = results_ch.concat(bam_analysis.out.results)
+
+// 		}
+
+//     }
+
+// 	if (run_fastq_analysis) {
+
+// 		fastq_analysis(preprocessed_ch)
+// 		results_ch = results_ch.concat(fastq_analysis.out.results)
+
+// 	}
+
+// 	if (run_amplicon_analysis) {
+
+// 		amplicon_analysis(preprocessed_ch)
+// 		results_ch = results_ch.concat(amplicon_analysis.out.results)
+
+// 	}
+
+// 	if (!params.skip_collate) {
+// 		collate_results(
+// 			results_ch.collect(),
+// 			"${projectDir}/scripts/ExtractProfiledCounts_210823.R",
+// 			params.GTDB_markers
+// 		)
+// 	}
+
+// }
