@@ -61,11 +61,13 @@ workflow fastq_input {
 
 		prepare_fastqs(fastq_ch)
 
+		fastq_ch = prepare_fastqs.out.paired
+			.concat(prepare_fastqs.out.single)
+			.map { classify_sample(it[0], it[1]) } 
+
 
 	emit:
-		fastqs = prepare_fastqs.out.paired
-			.concat(prepare_fastqs.out.single)
-			.map { classify_sample(it[0], it[1]) }
+		fastqs = fastq_ch
 }
 
 
