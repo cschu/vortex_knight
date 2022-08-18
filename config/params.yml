@@ -1,0 +1,170 @@
+# i/o parameters
+
+# Where are the final results published?
+output_dir: "vknight_out"
+
+# How are the final results published?
+# By default, files are copied from the work-dir.
+# Valid settings: "copy", "move", "link", "symlink"
+# ATT: "link" does not work on all filesystems, such as some /scratch volumes
+publish_mode: "copy"
+
+# path to mailx/mail application for email notifications -- EXPERIMENTAL
+mailer: "/usr/bin/mail"
+
+# email address for receiving email notifications -- EXPERIMENTAL
+email: false
+
+
+# workflow parameters
+
+# run preprocessing/qc workflow
+# alternative parameter: skip_preprocessing
+run_preprocessing: true
+
+# run host-decontamination subworkflow
+# vknight: false
+# nevermore: true
+remove_host: false
+
+# ignore orphan reads after qc
+# vknight: true
+# nevermore: false
+# alternative parameter: keep_orphans
+drop_orphans: true
+
+# ignore chimeric reads (unclassified reads with mate classified as host) after decon
+# vknight: true
+# nevermore: false
+drop_chimeras: true
+
+# attempt to merge paired-end reads (currently unused)
+merge_reads: false
+
+# run in amplicon mode
+# GAGA2: true
+amplicon_seq: false
+
+
+# qc parameters
+# (also refer to: https://jgi.doe.gov/data-and-tools/bbtools/bb-tools-user-guide/bbduk-guide/)
+
+# minimum read length [bp]
+# NGLess functional profiling: 45
+# 16S GAGA2: 100
+qc_minlen: 45
+
+# bbduk wgs
+# qtrim=rl trimq=3 : gentle quality trimming (only discard bases < phred 3; phred 2 = junk marker) on either side (rl) of the read
+# maq=25 : discard reads below average quality of pred 25
+# ref=?? ktrim=r k=23 mink=11 hdist=1 tpe tbo : right-side k-mer based adapter clipping with 1 mismatch allowed, try overlap-detection (tbo), and trim pairs to same length (tpe) upon adapter detection -- NOTE: ref-parameter is set within workflow
+# ftm=5 : get rid of (n*5)+1st base (last sequencing cycle illumina garbage) -- NOTE: unset for preprocessed data
+# entropy=0.5 entropywindow=50 entropyk=5 : discard low complexity sequences
+qc_params_shotgun: "qtrim=rl trimq=3 maq=25 ktrim=r k=23 mink=11 hdist=1 ftm=5 entropy=0.5 entropywindow=50 entropyk=5 tpe tbo"
+
+# bbduk amplicon primers -- EXPERIMENTAL/OBSOLETE
+qc_params_amplicon_primers: "qtrim=rl trimq=3 ktrim=l k=14 mink=1 hdist=1 cu=t"
+
+# bbduk amplicon seq -- EXPERIMENTAL/OBSOLETE
+qc_params_amplicon: "qtrim=rl trimq=3 ktrim=l k=23 mink=1 hdist=1 tpe tbo cu=t"
+
+# Stepwise 16S amplicon primer removal -- EXPERIMENTAL
+# If only primer lengths are supplied, figaro/dada2 will take care of primer removal.
+# Otherwise, if primer sequences are supplied via --primer,
+# primer + adapter removal is a two-step process.
+# Primer removal is highly dataset-specific, you might have to play with the settings below:
+# cu=t : allow degenerate primer sequences
+# qtrim=rl trimq=3 : gentle quality trimming (< phred 3) on both sides
+# ktrim=(r|l) : clip adapters from right xor left end -- DO NOT MODIFY.
+# restrictleft|restrictright : only take into account the first / last N bases for adapter clipping -- DO NOT MODIFY
+# k=9 hdist=1: adapter/primer k-mers of length 9 have to match with at most one mismatch
+# mink=1: at the ends of reads, perfect (mismatch=0) adapter/primer k-mer matches of length 1 are allowed (similar to cutadapt)
+# -- to allow mismatches, set hdist2 to a positive, non-zero intege
+
+# set primer sequences, comma-separated
+primers: ""
+
+# single-end amplicon
+single_end: false
+
+# long-reads, spanning the whole amplicon on its own
+long_reads: false
+
+# Step1: bbduk 5' amplicon primer removal
+# gentle quality trimming (< phred 3) + remove left primer on R1-5' and potentially on R2-3' (rc) 
+p5_primer_params: "cu=t qtrim=rl ktrim=l trimq=3 k=9 mink=1 hdist=1 restrictleft=50"
+
+# Step2: bbduk 3' amplicon primer removal
+# remove right primer on R2-5' and potentially on R1-3' (rc)
+p3_primer_params: "cu=t ktrim=r k=9 mink=1 hdist=1 restrictright=50"
+
+
+# decontamination parameters
+
+# path to a kraken2 database for host-removal
+remove_host_kraken2_db:
+
+# kraken2_min_hit_groups
+kraken2_min_hit_groups: 10
+
+
+# profiling parameters
+
+# pathseq
+
+# pathseq database directory (unused!)
+# pathseq_database:
+
+# pathseq database individual files
+pathseq_database: "/g/scb/zeller/fspringe/Database/PathSeq_Dohlman"
+pathseq_db_filter_bwa_image: "/g/scb/zeller/fspringe/Database/PathSeq_Dohlman/pathseq_host.fa.img"
+pathseq_db_kmer_file: "/g/scb/zeller/fspringe/Database/PathSeq_Dohlman/pathseq_host.bfi"
+pathseq_db_microbe_fasta: "/g/scb/zeller/fspringe/Database/PathSeq_Dohlman/pathseq_microbe.fa"
+pathseq_db_microbe_bwa_image: "/g/scb/zeller/fspringe/Database/PathSeq_Dohlman/pathseq_microbe.fa.img"
+pathseq_db_taxonomy_file: "/g/scb/zeller/fspringe/Database/PathSeq_Dohlman/pathseq_taxonomy.db"
+
+# minimum readlength for pathseq to consider
+pathseq_min_clipped_read_length: 31
+
+
+# motus
+
+# motus database path if you have a custom mOTUs installation
+# this will automatically activate usage of the -db command line parameter.
+motus_database: "/g/scb/zeller/fspringe/Software/mOTUs/motus/share/motus-2.6.0/db_mOTU"
+
+# motus parameters
+motus_min_length: 30  # -l
+motus_n_marker_genes: 1  # -g
+motus_tax_level: "genus"  # -k
+
+
+# read_counter
+
+read_counter_database: "/g/scb/zeller/fspringe/Database/GTDB/all_genes.faa"
+read_counter_min_length: 75
+read_counter_count_mode: "-y insert.raw_counts"  #  "-y insert.scaled_counts" is default
+
+
+# kraken2
+
+kraken_database: "/g/scb/zeller/jawirbel/total_RNAseq/databases/kraken2_standard"
+kraken2_min_hit_groups: 10
+
+
+# mapseq
+
+# where is the mapseq binary located; default: 'mapseq' (e.g. when loaded from container or in PATH)
+mapseq_bin: "mapseq" 
+
+# mapseq database
+# ATT: The path must be a directory containing exactly 1 .fna and 1 .tax file
+# (other files not ending in .tax/.fna are fine)
+
+mapseq_db: "/g/scb/zeller/schudoma/mapseq_db/ssu_r89"
+
+
+# collation parameters
+
+GTDB_markers: "/g/scb/zeller/fspringe/Database/GTDB/GTDB_marker_gene_lengths.tsv"
+
