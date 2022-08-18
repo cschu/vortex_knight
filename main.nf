@@ -64,7 +64,8 @@ workflow bam_input {
 		bam_ch
 	main:
 		transfer_bams(bam_ch.collect())
-		bam_ch = transfer_bams.out.bamfiles
+		transfer_bams.out.bamfiles.view()
+		bam_ch = transfer_bams.out.bamfiles.flatten()
 			.map { file ->
 				def sample = file.name.replaceAll(/.bam$/, "")
 				return tuple(sample, file)
