@@ -20,7 +20,7 @@ process qc_bbduk_stepwise_amplicon {
 		trim_params = "ref=${adapters} minlength=${params.qc_minlen}"
 	}
 
-	def bbduk_call = "bbduk.sh -Xmx${maxmem} t=${task.cpus} ordered=t trd=t"
+	def bbduk_call = "bbduk.sh -Xmx${maxmem}g t=${task.cpus} ordered=t trd=t"
 
 	ref_p5_r1 = (params.primers) ? "literal=" + params.primers.split(",")[0] : "ref=${adapters}"
 	ref_p5_r2 = (params.primers && !sample.is_paired) ? "literal=" + params.primers.split(",")[1] : "ref=${adapters}"
