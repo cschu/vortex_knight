@@ -16,12 +16,11 @@ process qc_bbduk {
     def read1 = "in1=${sample.id}_R1.fastq.gz out1=qc_reads/${sample.id}/${sample.id}_R1.fastq.gz"
     def read2 = sample.is_paired ? "in2=${sample.id}_R2.fastq.gz out2=qc_reads/${sample.id}/${sample.id}_R2.fastq.gz outs=qc_reads/${sample.id}/${sample.id}.orphans_R1.fastq.gz" : ""
 
-	qc_params = params.qc_params_shotgun
-	trim_params = "ref=${adapters} minlen=${params.qc_minlen}"
+    trim_params = params.qc_params + " ref=${adapters} minlen=${params.qc_minlen}"
 
     """
     mkdir -p qc_reads/${sample.id}
 	mkdir -p stats/qc/bbduk/
-    bbduk.sh -Xmx${maxmem}g t=${task.cpus} ${qc_params} ref=${adapters} stats=stats/qc/bbduk/${sample.id}.bbduk_stats.txt ${read1} ${read2}
+    bbduk.sh -Xmx${maxmem}g t=${task.cpus} ${trim_params} stats=stats/qc/bbduk/${sample.id}.bbduk_stats.txt ${read1} ${read2}
     """
 }
