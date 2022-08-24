@@ -266,4 +266,3 @@ workflow vknight_main {
 	emit:
 		results = results_ch
 }
-
