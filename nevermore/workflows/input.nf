@@ -14,6 +14,18 @@ process transfer_fastqs {
 		"""
 }
 
+process transfer_bams {
+	input:
+		path(bamfiles)
+	output:
+		path("bam/*.bam"), emit: bamfiles
+	script:
+		"""
+		mkdir -p bam/
+		find . -maxdepth 1 -type l -name '*.bam' | xargs -I {} readlink {} | xargs -I {} rsync -avP {} bam/
+		"""
+}
+
 process prepare_fastqs {
 	publishDir params.output_dir, mode: "${params.publish_mode}"
 
@@ -61,38 +73,32 @@ workflow fastq_input {
 
 		prepare_fastqs(fastq_ch)
 
+		fastq_ch = prepare_fastqs.out.paired
+			.concat(prepare_fastqs.out.single)
+			.map { classify_sample(it[0], it[1]) } 
+
 
 	emit:
-		fastqs = prepare_fastqs.out.paired
-			.concat(prepare_fastqs.out.single)
-			.map { classify_sample(it[0], it[1]) }
+		fastqs = fastq_ch
 }
 
+workflow bam_input {
+	take:
+		bam_ch
+	main:
+		transfer_bams(bam_ch.collect())
+		transfer_bams.out.bamfiles.view()
+		bam_ch = transfer_bams.out.bamfiles.flatten()
+			.map { file ->
+				def sample = file.name.replaceAll(/.bam$/, "")
+				return tuple(sample, file)
+			}
+			.groupTuple(sort: true)
+			.map { classify_sample(it[0], it[1]) }
 
-/*
-		
-
-
-    179     fastq_ch = Channel
-    180         .fromPath(params.input_dir + "/**[._]{fastq.gz,fq.gz}").collect()
-    181     // fastq_ch.view()
-    182
-    183     copy_or_gzip(fastq_ch, "/scratch/schudoma/copy_or_zip.py")
-    184     copy_or_gzip.out.fastqs.view()
-    185
-    186     fastq_ch = copy_or_gzip.out.fastqs.flatten()
-    187
-    188
-    189         .map { file ->
-    190             def sample = file.getParent().getName()
-    191             fname = file.name.replaceAll(/.(fastq|fq)(.gz)?$/, "").replaceAll(params.suffix_pattern, "")
-    192             return tuple(sample, file)
-    193         }
-    194         .groupTuple(sort: true)
-    195     // fastq_ch.view()
-    196
-    197     rename_or_merge_fastqs(fastq_ch, "/scratch/schudoma/get_samples.py")
-    198
-    199
-    200 }
-*/	
+		bam2fq(bam_ch)
+		bam_ch = bam2fq.out.reads
+			.map { classify_sample(it[0].id, it[1]) }
+	emit:
+		bamfiles = bam_ch
+}

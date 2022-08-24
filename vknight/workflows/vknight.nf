@@ -9,6 +9,8 @@ include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
 include { fq2fa } from "../../nevermore/modules/converters/fq2fa"
+include { fastqc } from "../../nevermore/modules/qc/fastqc"
+include { multiqc } from "../../nevermore/modules/qc/multiqc"
 
 
 if (!params.publish_mode) {
@@ -39,6 +41,9 @@ def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && par
 def run_motus = (!params.skip_motus || params.run_motus);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
+
+def asset_dir = "${projectDir}/nevermore/assets"
+
 
 
 workflow bam_analysis {
@@ -129,7 +134,6 @@ workflow amplicon_analysis {
 	main:
 		out_ch = Channel.empty()
 
-		//mtags_extract(fastq_ch)
 		fq2fa(fastq_ch)
 
 		mapseq_ch = Channel.empty()
@@ -157,3 +161,108 @@ workflow amplicon_analysis {
 }
 
 
+workflow vknight_main {
+	take:
+		fastq_ch
+	main:
+		results_ch = Channel.empty()
+
+		if (do_preprocessing) {
+
+			nevermore_simple_preprocessing(fastq_ch)
+
+			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+			results_ch = results_ch
+				.concat(nevermore_simple_preprocessing.out.raw_counts)
+				.map { sample, files -> files }
+
+			if (params.remove_host) {
+
+				if (params.remove_host == "individual") {
+
+					remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+
+					preprocessed_ch = remove_host_kraken2_individual.out.reads
+
+
+				} else if (params.remove_host == "pair") {
+
+					remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+
+					preprocessed_ch = remove_host_kraken2.out.reads
+
+				}
+
+			}
+
+		} else {
+
+			preprocessed_ch = fastq_ch.out.fastqs
+				.concat(bfastq_ch)
+
+		}
+
+		//
+		/*	perform post-qc fastqc analysis and generate multiqc report on merged single-read and paired-end sets */
+
+		fastqc(preprocessed_ch, "qc")
+
+		multiqc(
+			fastqc.out.stats
+				.map { sample, report -> return report }.collect(),
+			"${asset_dir}/multiqc.config",
+			"qc"
+		)
+
+		//
+
+		if (get_basecounts || run_bam_analysis) {
+
+			fq2bam(preprocessed_ch)
+
+			if (get_basecounts) {
+
+				flagstats(fq2bam.out.reads)
+
+				flagstat_results_ch = flagstats.out.flagstats
+					.concat(flagstats.out.counts)
+					.concat(flagstats.out.is_paired)
+					.map { sample, files -> files }
+				results_ch = results_ch.concat(flagstat_results_ch)
+
+			}
+
+			if (run_bam_analysis) {
+
+				bam_analysis(fq2bam.out.reads)
+				results_ch = results_ch.concat(bam_analysis.out.results)
+
+			}
+
+		}
+
+		if (run_fastq_analysis) {
+
+			fastq_analysis(preprocessed_ch)
+			results_ch = results_ch.concat(fastq_analysis.out.results)
+
+		}
+
+		if (run_amplicon_analysis) {
+
+			amplicon_analysis(preprocessed_ch)
+			results_ch = results_ch.concat(amplicon_analysis.out.results)
+
+		}
+
+		if (!params.skip_collate) {
+			collate_results(
+				results_ch.collect(),
+				"${projectDir}/scripts/ExtractProfiledCounts_210823.R",
+				params.GTDB_markers
+			)
+		}
+
+	emit:
+		results = results_ch
+}
