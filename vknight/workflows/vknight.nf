@@ -9,6 +9,8 @@ include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
 include { fq2fa } from "../../nevermore/modules/converters/fq2fa"
+include { fastqc } from "../../nevermore/modules/qc/fastqc"
+include { multiqc } from "../../nevermore/modules/qc/multiqc"
 
 
 if (!params.publish_mode) {
@@ -39,6 +41,9 @@ def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && par
 def run_motus = (!params.skip_motus || params.run_motus);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
+
+def asset_dir = "${projectDir}/nevermore/assets"
+
 
 
 workflow bam_analysis {
@@ -197,6 +202,19 @@ workflow vknight_main {
 
 		}
 
+		//
+		/*	perform post-qc fastqc analysis and generate multiqc report on merged single-read and paired-end sets */
+
+		fastqc(preprocessed_ch, "qc")
+
+		multiqc(
+			fastqc.out.stats
+				.map { sample, report -> return report }.collect(),
+			"${asset_dir}/multiqc.config",
+			"qc"
+		)
+
+		//
 
 		if (get_basecounts || run_bam_analysis) {
 
