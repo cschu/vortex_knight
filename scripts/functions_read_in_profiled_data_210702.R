@@ -1,4 +1,4 @@
-library(stringr)
+#library(stringr)
 library(progress)
 
 .f_read_in_files_mapseq <- function(path_to_folder){
@@ -82,7 +82,7 @@ library(progress)
   message(paste0("Importing ",length(sample.names)," samples"))
   res.df <- tibble(!!tax.lvl := character())
   pb <- progress_bar$new(total=length(sample.names))
-  i <- 306
+  i <- 1
   for(i in seq(1,length(sample.names))){
     #message(i)
     c.sample <- sample.names[i]
@@ -131,7 +131,7 @@ library(progress)
     #compute absolute abudnance
     tax.counts <- c.combined %>%
       select(-tax_info) %>% 
-      filter(str_detect(kingdom,pattern = "Bacteria")) %>%
+      filter(str_detect(kingdom,pattern = "Bacteria|Archaea")) %>% 
       group_by(!!as.symbol(tax.lvl)) %>%
       mutate(!!as.symbol(tax.lvl) := str_remove(!!as.symbol(tax.lvl),pattern = "[a-zA-Z]__")) %>% ##remove "g__" from tax.lvl column name
       mutate(!!as.symbol(tax.lvl) := case_when(!!as.symbol(tax.lvl) == "" ~ NA_character_,
@@ -182,7 +182,7 @@ library(progress)
   ### iterate over every file and select counts at the selected tax level
   pb <- progress_bar$new(total=length(file_list))
   total.counts.mapped <- tibble(Sample_ID = !!gsub(x = file_list,pattern = ".txt",replacement = ""),tot.counts.mapped = double(length(file_list)))
-  i <- 81
+  i <- 1
   for(i in seq(1,length(file_list))){
     #message(i)
     ### read in file
@@ -211,15 +211,28 @@ library(progress)
     archea.start <- bac.end <- which(c.f[,6] == "Archaea") #get row in table at which "archea" start
     
     bac.end <- min(virus.start,archea.start)-1 #get last row with entries for bacteria
+    archea.end <- virus.start-1
+    
     if(!(is.finite(bac.end))){
       bac.end <- nrow(c.f)
     }
-    #subset to keep only the entries mapped to bacteria
-    bac.reads <- c.f[(bac.start:bac.end),]  
+    if(!is.finite(archea.end)){
+      archea.end <- bac.end
+    }
+    
+    #subset to keep only the entries mapped to bacteria AND archea
+    bac.reads <- c.f[(bac.start:archea.end),]  
     
     ### select counts and tax names
-    c.counts.df <- bac.reads %>% filter(tax.symbol == tax.sym | tax.symbol == "D") %>% select(tax.name,counts.sum) %>% 
-      rename(!!gsub(x = file_list[i],pattern = ".txt",replacement = "") := counts.sum)
+    c.counts.df <- 
+      bind_rows(
+        bac.reads %>% filter(tax.symbol == tax.sym) %>% select(tax.name,counts.sum), #select counts at genus level
+        bac.reads %>% filter(tax.symbol == "D") %>% select(tax.name,counts.sum) %>% #select "Bacterial" and "Archeal" counts, sum them togehter as "Bacteria" and merge with counts data
+          mutate(tax.name = "Bacteria") %>% 
+          group_by(tax.name) %>% 
+          summarise(counts.sum = sum(counts.sum))) %>% 
+      arrange(-counts.sum) %>% 
+    rename(!!gsub(x = file_list[i],pattern = ".txt",replacement = "") := counts.sum)
     
     # Add to data from other samples
     counts.df <- suppressMessages(full_join(counts.df,c.counts.df,by="tax.name"))
@@ -275,17 +288,31 @@ library(progress)
     }
     
     ### select counts and tax names
+    #Edit 22-09-01: When Archaeal reads also should be considered: 
+    #Select "Archaea" and "Bacteria", sum up "score" and "unambigous" of the "superkingdom" and then normalize every tax.lvl counts against this number
+    
+    c.combined.df <- 
+      c.f %>% 
+      filter(type == "superkingdom",
+             kingdom %in% c("Bacteria","Archaea")) %>% 
+      mutate(name = "Bacteria") %>% 
+      group_by(name) %>% 
+      summarise(score = sum(score),
+                unambiguous = sum(unambiguous)) %>% 
+      add_column(tax_id = 0000) %>%  #just to have a tax_id
+    bind_rows(.,c.f %>% filter(kingdom %in% c("Bacteria","Archaea"),
+                               type == tax.sym)) %>% 
+      mutate(score_normalized = score/score[1]*100)
+    
     c.score.df <-
-      c.f %>% filter(type == tax.sym | type == "superkingdom",
-                     kingdom == "Bacteria") %>%
+      c.combined.df %>% 
       select(name,tax_id,score_normalized) %>%
       rename(!!gsub(x = file_list[i],pattern = ".pathseq.txt",replacement = "") := score_normalized,
              tax.name = name)
 
     # also unambiguous counts
     c.counts.df <-
-      c.f %>% filter(type == tax.sym | type == "superkingdom",
-                     kingdom == "Bacteria") %>%
+      c.combined.df %>% 
       select(name,tax_id,unambiguous) %>%
       rename(!!gsub(x = file_list[i],pattern = ".pathseq.txt",replacement = "") := unambiguous,
              tax.name = name)
@@ -629,45 +656,99 @@ library(progress)
   return(c.tax.counts)
 }
 
-.f_ASV_to_tax <- function(lvl,asv_table,mseq.output){
-  #Function that converts an asv-count matrix (e.g. from a dada2 result) to a count matrix at selected tax-level (lvl), 
-  #by taking the taxonomic infroamtion from the mseq.output file (ASVs must be in column 1 and tax-tree must be in column 14 (-> default when running mapseq with --simple)))
+# .f_ASV_to_tax <- function(lvl,asv_table,mseq.output){
+#   #Function that converts an asv-count matrix (e.g. from a dada2 result) to a count matrix at selected tax-level (lvl), 
+#   #by taking the taxonomic infroamtion from the mseq.output file (ASVs must be in column 1 and tax-tree must be in column 14 (-> default when running mapseq with --simple)))
+#   
+#   stopifnot(lvl %in% c('kingdom', 'phylum', 'class', 
+#                        'order', 'family', 'genus', 'species'))
+#   tax <- .f_resolve_ASVs(mseq.output = mseq.output)
+#   tax
+#   tax <- tax %>% 
+#     filter(ASV %in% rownames(asv_table))
+#   if (any(colSums(asv_table) == 0)){
+#     asv_table <- asv_table[,colSums(asv_table) > 0]
+#   }
+#   
+#   groups <- tax %>% 
+#     filter(!is.na(!!as.symbol(lvl))) %>% 
+#     pull(!!as.symbol(lvl)) %>% 
+#     unique
+#   groups
+#   mat.new <- matrix(0, nrow=length(groups), ncol=ncol(asv_table),
+#                     dimnames = list(groups, colnames(asv_table)))
+#   # Selects all ASVs that correspond to the current group (e.g current genera) and sums the counts
+#   for (g in groups){
+#     mat.new[g,] <- colSums(asv_table[
+#       tax %>% 
+#         filter(!!as.symbol(lvl)==g) %>% 
+#         pull(ASV), ,drop=FALSE])
+#   }
+#   #Add counts of samples that are not resolved at given tax_level
+#   #This is represented by the difference of colSums
+#   not_resolved <- as.matrix(t(colSums(asv_table)-colSums(mat.new)))
+#   rownames(not_resolved) <- "not_resolved"
+#   mat.new <- rbind(not_resolved,mat.new)
+#   
+#   #remove the underscore with the tax_level identifier (e.g. "g__")
+#   rownames(mat.new) <- str_remove(rownames(mat.new),pattern = "[a-zA-Z]__")
+#   
+#   print(summary(colSums(mat.new)))
+#   return(mat.new)
+# }
+
+.f_map_asv_to_tax <- function(asv_tsv,tax.mseq,tax_lvl){
   
-  stopifnot(lvl %in% c('kingdom', 'phylum', 'class', 
-                       'order', 'family', 'genus', 'species'))
-  tax <- .f_resolve_ASVs(mseq.output = mseq.output)
-  tax
-  tax <- tax %>% 
-    filter(ASV %in% rownames(asv_table))
-  if (any(colSums(asv_table) == 0)){
-    asv_table <- asv_table[,colSums(asv_table) > 0]
-  }
+  c_tax <- 
+    tax.mseq %>% 
+    filter(kingdom == "d__Bacteria") %>% 
+    filter(!(is.na(!!as.symbol(tax_lvl)))) %>% 
+    select(ASV,!!as.symbol(tax_lvl))
   
-  groups <- tax %>% 
-    filter(!is.na(!!as.symbol(lvl))) %>% 
-    pull(!!as.symbol(lvl)) %>% 
-    unique
-  groups
-  mat.new <- matrix(0, nrow=length(groups), ncol=ncol(asv_table),
-                    dimnames = list(groups, colnames(asv_table)))
-  # Selects all ASVs that correspond to the current group (e.g current genera) and sums the counts
-  for (g in groups){
-    mat.new[g,] <- colSums(asv_table[
-      tax %>% 
-        filter(!!as.symbol(lvl)==g) %>% 
-        pull(ASV), ,drop=FALSE])
-  }
-  #Add counts of samples that are not resolved at given tax_level
-  #This is represented by the difference of colSums
-  not_resolved <- as.matrix(t(colSums(asv_table)-colSums(mat.new)))
-  rownames(not_resolved) <- "not_resolved"
-  mat.new <- rbind(not_resolved,mat.new)
   
-  #remove the underscore with the tax_level identifier (e.g. "g__")
-  rownames(mat.new) <- str_remove(rownames(mat.new),pattern = "[a-zA-Z]__")
   
-  print(summary(colSums(mat.new)))
-  return(mat.new)
+  
+  #get total bacterial counts (sum of ASV that are mapped to the database of interes)
+  bac.counts.mat <- 
+    asv_tsv %>% 
+    as_tibble(rownames = "ASV") %>% 
+    gather(-ASV,key = "Sample_ID",value = "count") %>% 
+    left_join(.,tax.mseq %>% 
+                filter(kingdom == "d__Bacteria") %>% 
+                select(ASV,kingdom)) %>% 
+    filter(!is.na(kingdom)) %>% 
+    group_by(Sample_ID) %>% 
+    summarise(sum_bacteria = sum(count)) %>% 
+    add_column(names = "Bacteria") %>% 
+    pivot_wider(names_from = Sample_ID,values_from = sum_bacteria) %>% 
+    column_to_rownames("names") %>% 
+    as.matrix()
+  
+  
+  asv.mat <- 
+    asv_tsv %>% 
+    as_tibble(rownames = "ASV") %>% 
+    gather(-ASV,key = "Sample_ID",value = "count") %>% 
+    inner_join(.,c_tax) %>% 
+    group_by(Sample_ID,!!as.symbol(tax_lvl)) %>% 
+    mutate(!!as.symbol(tax_lvl) := str_replace_all(!!as.symbol(tax_lvl),pattern = "[a-z]__",replacement = "")) %>% #remove "g__"
+    mutate(!!as.symbol(tax_lvl) := str_replace_all(!!as.symbol(tax_lvl),pattern = "\\_[A-Z]$",replacement = "")) %>% #gather GTDB tax
+    summarise(count = sum(count)) %>%
+    pivot_wider(names_from = Sample_ID,values_from = count) %>% 
+    column_to_rownames(tax_lvl) %>% 
+    as.matrix() %>%
+    replace(is.na(.),0)
+  
+  bac.counts.mat
+  stopifnot(colnames(bac.counts.mat) == colnames(asv.mat))
+  
+  not_resolved.mat <- 
+    bac.counts.mat-colSums(asv.mat)
+  rownames(not_resolved.mat) <- "not_resolved"
+  #combine everything
+  res.mat <- rbind(bac.counts.mat,not_resolved.mat,asv.mat)
+  return(res.mat)
+  
 }
 
 
