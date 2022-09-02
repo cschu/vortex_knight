@@ -3,15 +3,7 @@
 nextflow.enable.dsl=2
 
 include { fastq_input; bam_input } from "./nevermore/workflows/input"
-include { bam2fq } from "./nevermore/modules/converters/bam2fq"
-include { fq2bam } from "./nevermore/modules/converters/fq2bam"
-include { prepare_fastqs } from "./nevermore/modules/converters/prepare_fastqs"
-include { nevermore_simple_preprocessing } from "./nevermore/workflows/nevermore"
-include { amplicon_analysis; bam_analysis; fastq_analysis; vknight_main } from "./vknight/workflows/vknight"
-include { classify_sample } from "./nevermore/modules/functions"
-include { remove_host_kraken2; remove_host_kraken2_individual } from "./nevermore/modules/decon/kraken2"
-include { flagstats } from "./nevermore/modules/stats"
-include { collate_results } from "./vknight/modules/collate"
+
 
 if (params.input_dir && params.remote_input_dir) {
 	log.info """

@@ -8,9 +8,15 @@ include { motus } from  "../modules/profilers/motus"
 include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules/profilers/mapseq"
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
+
 include { fq2fa } from "../../nevermore/modules/converters/fq2fa"
 include { fastqc } from "../../nevermore/modules/qc/fastqc"
 include { multiqc } from "../../nevermore/modules/qc/multiqc"
+include { fq2bam } from "../../nevermore/modules/converters/fq2bam"
+include { nevermore_simple_preprocessing } from "../../nevermore/workflows/nevermore"
+include { remove_host_kraken2; remove_host_kraken2_individual } from "../../nevermore/modules/decon/kraken2"
+include { flagstats } from "../../nevermore/modules/stats"
+include { collate_results } from "../modules/collate"
 
 
 if (!params.publish_mode) {
