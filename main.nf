@@ -36,11 +36,6 @@ def run_motus = (!params.skip_motus || params.run_motus) && !params.amplicon_seq
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq) && !params.amplicon_seq;
 def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
 
-def get_basecounts = (!params.skip_basecounts || params.run_basecounts);
-def convert_fastq2bam = (run_pathseq || get_basecounts);
-
-def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
-
 def run_bam_analysis = run_pathseq && !params.amplicon_seq
 def run_fastq_analysis = (run_kraken2 || run_mtags || run_mapseq || run_motus || run_read_counter) && !params.amplicon_seq
 def run_amplicon_analysis = params.amplicon_seq

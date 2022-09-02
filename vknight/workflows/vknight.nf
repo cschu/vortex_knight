@@ -44,6 +44,8 @@ def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
 
 def asset_dir = "${projectDir}/nevermore/assets"
 
+def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
+def get_basecounts = (!params.skip_basecounts || params.run_basecounts);
 
 
 workflow bam_analysis {
