@@ -1,6 +1,7 @@
 nextflow.enable.dsl=2
 
 include { classify_sample } from "../modules/functions"
+include { bam2fq } from "../modules/converters/bam2fq"
 
 
 process transfer_fastqs {
