@@ -22,17 +22,6 @@ def input_dir = (params.input_dir) ? params.input_dir : params.remote_input_dir
 def fastq_input_pattern = input_dir + "/" + "**[._]{fastq.gz,fq.gz}"
 def bam_input_pattern = input_dir + "/" + "**.bam"
 
-def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2) && !params.amplicon_seq;
-def run_mtags = (!params.skip_mtags || params.run_mtags);
-def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && params.mapseq_bin)
-def run_motus = (!params.skip_motus || params.run_motus) && !params.amplicon_seq;
-def run_pathseq = (!params.skip_pathseq || params.run_pathseq) && !params.amplicon_seq;
-def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
-
-def run_bam_analysis = run_pathseq && !params.amplicon_seq
-def run_fastq_analysis = (run_kraken2 || run_mtags || run_mapseq || run_motus || run_read_counter) && !params.amplicon_seq
-def run_amplicon_analysis = params.amplicon_seq
-
 
 workflow {
 

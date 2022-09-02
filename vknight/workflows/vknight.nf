@@ -53,6 +53,11 @@ def asset_dir = "${projectDir}/nevermore/assets"
 def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
 def get_basecounts = (!params.skip_basecounts || params.run_basecounts);
 
+def run_bam_analysis = run_pathseq && !params.amplicon_seq
+def run_fastq_analysis = (run_kraken2 || run_mtags || run_mapseq || run_motus || run_read_counter) && !params.amplicon_seq
+def run_amplicon_analysis = params.amplicon_seq
+
+
 
 workflow bam_analysis {
 	take:
