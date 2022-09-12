@@ -68,7 +68,8 @@ def process_sample(input_dir, sample_id, fastqs, output_dir, remove_suffix=None)
 			print(r1_cmd)
 
 		if r2:
-			r2_cmd = " ".join(["cat"] + r2) + f" > {os.path.join(output_dir, sample_id, sample_id)}_R2.fastq.gz"
+			target_r = "R2" if r1 else "R1"
+			r2_cmd = " ".join(["cat"] + r2) + f" > {os.path.join(output_dir, sample_id, sample_id)}_{target_r}.fastq.gz"
 			print(r2_cmd)
 
 		if others:
