@@ -63,8 +63,9 @@ def process_sample(input_dir, sample_id, fastqs, output_dir, remove_suffix=None)
 		print("R1", r1, file=sys.stderr)
 		print("R2", r2, file=sys.stderr)
 
-		r1_cmd = " ".join(["cat"] + r1) + f" > {os.path.join(output_dir, sample_id, sample_id)}_R1.fastq.gz"
-		print(r1_cmd)
+		if r1:
+			r1_cmd = " ".join(["cat"] + r1) + f" > {os.path.join(output_dir, sample_id, sample_id)}_R1.fastq.gz"
+			print(r1_cmd)
 
 		if r2:
 			r2_cmd = " ".join(["cat"] + r2) + f" > {os.path.join(output_dir, sample_id, sample_id)}_R2.fastq.gz"
