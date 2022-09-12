@@ -182,7 +182,7 @@ library(progress)
   ### iterate over every file and select counts at the selected tax level
   pb <- progress_bar$new(total=length(file_list))
   total.counts.mapped <- tibble(Sample_ID = !!gsub(x = file_list,pattern = ".txt",replacement = ""),tot.counts.mapped = double(length(file_list)))
-  i <- 1
+  i <- 4
   for(i in seq(1,length(file_list))){
     #message(i)
     ### read in file
@@ -211,7 +211,7 @@ library(progress)
     archea.start <- bac.end <- which(c.f[,6] == "Archaea") #get row in table at which "archea" start
     
     bac.end <- min(virus.start,archea.start)-1 #get last row with entries for bacteria
-    archea.end <- virus.start-1
+    archea.end <- min(virus.start)-1 #just do get "inf" in virus start is not defined
     
     if(!(is.finite(bac.end))){
       bac.end <- nrow(c.f)
