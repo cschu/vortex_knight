@@ -48,12 +48,13 @@ def process_sample(input_dir, sample_id, fastqs, output_dir, remove_suffix=None)
 
 		print("PRE", prefixes, file=sys.stderr)
 
-		r1 = [(p, f) for p, f in zip(prefixes, fastqs) if p.endswith("1")]
-		r2 = [(p, f) for p, f in zip(prefixes, fastqs) if p.endswith("2")]
+		r1 = [(p, f) for p, f in zip(prefixes, fastqs) if re.search(r"[._R]1$", p)]
+		r2 = [(p, f) for p, f in zip(prefixes, fastqs) if re.search(r"[._R]2$", p)]
 		others = set(fastqs).difference({f for _, f in r1}).difference({f for _, f in r2})
 
-		assert len(r2) == 0 or len(r1) == len(r2), "R1/R2 sets are not of the same length"
-		check_pairwise(r1, r2)
+		assert len(r2) == 0 or len(r1) == 0 or len(r1) == len(r2), "R1/R2 sets are not of the same length"
+		if len(r1) == len(r2):
+			check_pairwise(r1, r2)
 
 		r1 = [os.path.join(input_dir, f) for f in sorted(f for _, f in r1)]
 		r2 = [os.path.join(input_dir, f) for f in sorted(f for _, f in r2)]
@@ -62,11 +63,13 @@ def process_sample(input_dir, sample_id, fastqs, output_dir, remove_suffix=None)
 		print("R1", r1, file=sys.stderr)
 		print("R2", r2, file=sys.stderr)
 
-		r1_cmd = " ".join(["cat"] + r1) + f" > {os.path.join(output_dir, sample_id, sample_id)}_R1.fastq.gz"
-		print(r1_cmd)
+		if r1:
+			r1_cmd = " ".join(["cat"] + r1) + f" > {os.path.join(output_dir, sample_id, sample_id)}_R1.fastq.gz"
+			print(r1_cmd)
 
 		if r2:
-			r2_cmd = " ".join(["cat"] + r2) + f" > {os.path.join(output_dir, sample_id, sample_id)}_R2.fastq.gz"
+			target_r = "R2" if r1 else "R1"
+			r2_cmd = " ".join(["cat"] + r2) + f" > {os.path.join(output_dir, sample_id, sample_id)}_{target_r}.fastq.gz"
 			print(r2_cmd)
 
 		if others:
