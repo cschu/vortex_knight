@@ -210,8 +210,8 @@ workflow vknight_main {
 
 		} else {
 
-			preprocessed_ch = fastq_ch.out.fastqs
-				.concat(bfastq_ch)
+			preprocessed_ch = fastq_ch //.out.fastqs
+				// .concat(bfastq_ch)
 
 		}
 
