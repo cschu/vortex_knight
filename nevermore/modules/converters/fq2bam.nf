@@ -18,4 +18,5 @@ process fq2bam {
 	mkdir -p out/
 	reformat.sh -Xmx${maxmem}g in=${sample.id}_R1.fastq.gz ${r2} trimreaddescription=t out=stdout.bam ${qual_modifier} | samtools addreplacerg -r "ID:A" -r "SM:${sample.id}" -o out/${sample.id}.bam -
 	"""
+	// https://forum.qiime2.org/t/bug-q2-itsxpresss-dependency-bbmap-cannot-handle-pacbio-ccs/17612/4
 }
