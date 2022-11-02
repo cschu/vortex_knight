@@ -88,7 +88,11 @@ def transfer_multifiles(files, dest, remote_input=False, compression=None):
 		transfer_file(files[0], dest, remote_input=remote_input)
 
 
-def process_sample(sample, fastqs, output_dir, remove_suffix=None, remote_input=False):
+def process_sample(
+	sample, fastqs, output_dir,
+	fastq_suffix_pattern,
+	remove_suffix=None, remote_input=False,
+):
 	""" Checks if a set of fastq files in a directory is a valid collection
 	and transfers files to a destination dir upon success.
 
@@ -136,7 +140,7 @@ def process_sample(sample, fastqs, output_dir, remove_suffix=None, remote_input=
 			compression = None
 
 		# extract the file name prefixes
-		prefixes = [re.sub(r"[._](fastq|fq|txt)([._](gz|bz2))?$", "", os.path.basename(f)) for f in fastqs]
+		prefixes = [re.sub(fastq_suffix_pattern, "", os.path.basename(f)) for f in fastqs]
 		if remove_suffix:
 			# remove suffix pattern if requested
 			prefixes = [re.sub(remove_suffix + r"$", "", p) for p in prefixes]
@@ -193,7 +197,7 @@ def process_sample(sample, fastqs, output_dir, remove_suffix=None, remote_input=
 			transfer_multifiles(others, dest, remote_input=remote_input, compression=compression)
 		
 
-def is_fastq(f):
+def is_fastq(f, valid_fastq_suffixes, valid_compression_suffixes):
 	""" Checks if a file is a fastq file (compressed or uncompressed.)
 
 	Input:
@@ -203,8 +207,8 @@ def is_fastq(f):
 	 - true if file is fastq else false
 
 	"""
-	valid_fastq_suffixes = (".fastq", ".fq", ".txt")
-	valid_compression_suffixes = (".gz", ".bz2")
+	# valid_fastq_suffixes = (".fastq", ".fq", ".txt")
+	# valid_compression_suffixes = (".gz", ".bz2")
 
 	prefix, suffix = os.path.splitext(f)
 	if suffix in valid_fastq_suffixes:
@@ -222,14 +226,27 @@ def main():
 	ap.add_argument("-p", "--prefix", type=str, required=True)
 	ap.add_argument("--remote-input", action="store_true")
 	ap.add_argument("--remove-suffix", type=str, default=None)
+	ap.add_argument("--valid-fastq-suffixes", type=str, default="fastq,fq")
+	ap.add_argument("--valid-compression-suffixes", type=str, default="gz,bz2")
 
 	args = ap.parse_args()
 
-	def collect_fastq_files(input_dir):
+	valid_fastq_suffixes = tuple(f".{suffix}" for suffix in args.valid_fastq_suffixes)
+	valid_compression_suffixes = tuple(f".{suffix}" for suffix in args.valid_compression_suffixes)
+
+	fastq_file_suffix_pattern = r"[._](" + \
+		args.valid_fastq_suffixes.replace(",", "|") + \
+		")([._](" + \
+		args.valid_compression_suffixes.replace(",", "|") + \
+		"))?$"
+
+	fastq_mate_pattern = r"([._R][12])$"
+
+	def collect_fastq_files(input_dir, valid_fastq_suffixes, valid_compression_suffixes):
 		return sorted(
 				os.path.join(input_dir, f)
 				for f in os.listdir(input_dir)
-				if is_fastq(f)
+				if is_fastq(f, valid_fastq_suffixes, valid_compression_suffixes)
 			)
 
 
@@ -245,17 +262,18 @@ def main():
 		sample, sample_dir = sample_dir, os.path.join(pwd, sample_dir)
 
 		samples.setdefault(sample, []).extend(
-			collect_fastq_files(sample_dir)			
+			collect_fastq_files(sample_dir, valid_fastq_suffixes, valid_compression_suffixes)			
 		)
 
-	root_fastqs = collect_fastq_files(args.input_dir)
+	root_fastqs = collect_fastq_files(args.input_dir, valid_fastq_suffixes, valid_compression_suffixes)
 
 	if samples and root_fastqs:
 		raise ValueError("Found {len(root_fastqs)} fastq files in input directory together with {len(samples)} sample directories. Please check input data.")
 	elif root_fastqs:
 		for f in root_fastqs:
-			sample = re.sub(r"[._](fastq|fq|txt)([._](gz|bz2))?$", "", os.path.basename(f))
-			sample = re.sub(r"([._R][12])$", "", sample)
+			# sample = re.sub(r"[._](fastq|fq|txt)([._](gz|bz2))?$", "", os.path.basename(f))
+			sample = re.sub(fastq_file_suffix_pattern, "", os.path.basename(f))
+			sample = re.sub(fastq_mate_pattern, "", sample)
 			samples.setdefault(sample, []).append(f)
 
 	# # collect all fastq files from input directory

@@ -49,9 +49,11 @@ process prepare_fastqs {
 		def remote_option = (remote_input) ? "--remote-input" : ""
 		def remove_suffix = (params.suffix_pattern) ? "--remove-suffix ${params.suffix_pattern}" : ""
 		def input_dir_prefix = (params.input_dir) ? params.input_dir : params.remote_input_dir
+
+		def custom_suffixes = (params.custom_fastq_file_suffixes) ? "--valid-fastq-suffixes ${params.custom_fastq_file_suffixes}" : ""
 		
 		"""
-		prepare_fastqs.py -i . -o fastq/ -p ${input_dir_prefix} ${remote_option} ${remove_suffix}
+		prepare_fastqs.py -i . -o fastq/ -p ${input_dir_prefix} ${custom_suffixes} ${remote_option} ${remove_suffix}
 		"""
 		// mkdir -p fastq/
 }
