@@ -313,6 +313,7 @@ def main():
 		try:
 			process_sample(
 				sample, fastqs, args.output_dir,
+				fastq_file_suffix_pattern,
 				remove_suffix=args.remove_suffix, remote_input=args.remote_input
 			)
 		except Exception as e:
