@@ -8,11 +8,9 @@ include { prepare_fastqs } from "../modules/converters/prepare_fastqs"
 include { fastqc } from "../modules/qc/fastqc"
 include { multiqc } from "../modules/qc/multiqc"
 include { collate_stats } from "../modules/collate"
-include { nevermore_align } from "./align"
+include { nevermore_align; nevermore_prep_align } from "./align"
 
 def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
-
-def config_dir = (projectDir.endsWith("nevermore")) ? "${projectDir}/config" : "${projectDir}/nevermore/config"
 
 
 workflow nevermore_main {
@@ -23,11 +21,11 @@ workflow nevermore_main {
 	main:
 		if (do_preprocessing) {
 	
-			prepare_fastqs(fastq_ch)
+			//prepare_fastqs(fastq_ch)
 	
-			raw_fastq_ch = prepare_fastqs.out.reads
+			//raw_fastq_ch = prepare_fastqs.out.reads
 	
-			nevermore_simple_preprocessing(raw_fastq_ch)
+			nevermore_simple_preprocessing(fastq_ch)
 	
 			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
 			if (!params.drop_orphans) {
@@ -58,31 +56,40 @@ workflow nevermore_main {
 	
 		}
 	
-		nevermore_align(preprocessed_ch)
-	
+		nevermore_prep_align(preprocessed_ch)
+		align_ch = Channel.empty()
+
 		if (do_preprocessing) {
-	
 			collate_ch = nevermore_simple_preprocessing.out.raw_counts
-				.map { sample, file -> return file }
-				.collect()
-				.concat(
-					nevermore_align.out.read_counts
-						.map { sample, file -> return file }
-						.collect()
-				)
-				.concat(
-					nevermore_align.out.aln_counts
-						.map { sample, file -> return file }
-						.collect()
-				)
-				.collect()
-	
-			collate_stats(
-				collate_ch
+			.map { sample, file -> return file }
+			.collect()
+			.concat(
+				nevermore_prep_align.out.read_counts
+					.map { sample, file -> return file }
+					.collect()
 			)
+		}			
+
+		if (!params.skip_alignment) {
+			nevermore_align(nevermore_prep_align.out.fastqs)
+			align_ch = nevermore_align.out.alignments
 	
+			if (do_preprocessing) {		
+				collate_ch = collate_ch	
+					.concat(
+						nevermore_align.out.aln_counts
+							.map { sample, file -> return file }
+							.collect()
+					)		
+			}
+		}
+
+		if (do_preprocessing) {
+			collate_stats(collate_ch.collect())
 		}
 
 	emit:
-		alignments = nevermore_align.out.alignments
+		alignments = align_ch
+		fastqs = nevermore_prep_align.out.fastqs
+		read_counts = nevermore_prep_align.out.read_counts
 }

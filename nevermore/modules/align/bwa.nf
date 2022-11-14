@@ -17,14 +17,14 @@ process bwa_mem_align {
     def sort_reads2 = (sample.is_paired) ? "sortbyname.sh -Xmx${maxmem}g in=${sample.id}_R2.fastq.gz out=${sample.id}_R2.sorted.fastq.gz" : ""
     def blocksize = "-K 10000000"  // shamelessly taken from NGLess
 
-    def sort_cmd = (do_name_sort) ? "samtools collate -@ ${sort_cpus} -o ${sample.id}.bam -" : "samtools sort -@ ${sort_cpus} -o ${sample.id}.bam -"
+    def sort_cmd = (do_name_sort) ? "samtools collate -@ ${sort_cpus} -o ${sample.id}.bam - tmp/collated_bam" : "samtools sort -@ ${sort_cpus} -o ${sample.id}.bam -"
 
     """
     set -e -o pipefail
+    mkdir -p tmp/
     sortbyname.sh -Xmx${maxmem}g in=${sample.id}_R1.fastq.gz out=${sample.id}_R1.sorted.fastq.gz
     ${sort_reads2}
     bwa mem -a -t ${align_cpus} ${blocksize} \$(readlink ${reference}) ${sample.id}_R1.sorted.fastq.gz ${reads2} | samtools view -F 4 -buSh - | ${sort_cmd}
+    rm -rvf tmp/ *.sorted.fastq.gz
     """
-    // samtools sort -@ ${sort_cpus} -o ${sample.id}.bam
-
 }
