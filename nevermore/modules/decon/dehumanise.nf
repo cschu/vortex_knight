@@ -1,5 +1,5 @@
 process dehumanise {
-    publishDir "$output_dir", mode: params.publish_mode, pattern: "no_human/*/*.fastq.gz"
+    // publishDir "$output_dir", mode: params.publish_mode, pattern: "no_human/*/*.fastq.gz"
 
     input:
     tuple val(sample), path(fq)

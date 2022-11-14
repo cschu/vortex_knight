@@ -26,7 +26,7 @@ def bam_input_pattern = input_dir + "/" + "**.bam"
 workflow {
 
 	fastq_input(
-		Channel.fromPath(fastq_input_pattern)
+		Channel.fromPath(input_dir + "/*", type: "dir")
 	)
 
 	bam_input(

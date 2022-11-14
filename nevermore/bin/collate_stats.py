@@ -212,7 +212,7 @@ def write_output(readcounts, flagstats, outfile):
 		# line = [sample, readcounts[sample].get("paired_end", False), readcounts[sample].get("single_end", False), sum(v for k, v in readcounts[sample].items() if k[0] == ".")]
 		# line += (readcounts[sample].get(key, 0) for key in (".main", ".singles", ".orphans", ".chimeras"))
 		line += tuple(
-			flagstats[sample].get(key, 0)
+			flagstats.get(sample, {}).get(key, 0)
 			for key in (
 				"n_alignments", "primary_alignments",
 				"secondary_alignments", "npaired_mapped", "nsingles_mapped"
