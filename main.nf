@@ -18,22 +18,31 @@ if (params.input_dir && params.remote_input_dir) {
 	exit 1
 }
 
+
+
+
 def input_dir = (params.input_dir) ? params.input_dir : params.remote_input_dir
+
+
 def fastq_input_pattern = input_dir + "/" + "**[._]{fastq.gz,fq.gz}"
 def bam_input_pattern = input_dir + "/" + "**.bam"
 
 
 workflow {
 
-	fastq_input(
-		Channel.fromPath(input_dir + "/*", type: "dir")
-	)
-
-	bam_input(
-		Channel.fromPath(bam_input_pattern)
-	)
-
-	fastq_ch = fastq_input.out.fastqs.concat(bam_input.out.bamfiles)
+	if (params.bam_input) {
+		bam_input(
+			Channel.fromPath(bam_input_pattern)
+		)
+		fastq_ch = bam_input.out.bamfiles
+	} else {
+		fastq_input(
+			Channel.fromPath(input_dir + "/*", type: "dir")
+		)
+		fastq_ch = fastq_input.out.fastqs
+	}
+	
+	// fastq_ch = fastq_input.out.fastqs.concat(bam_input.out.bamfiles)
 	fastq_ch.view()
 
 	vknight_main(fastq_ch)
