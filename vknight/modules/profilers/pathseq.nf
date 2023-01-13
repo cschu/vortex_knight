@@ -11,6 +11,14 @@ process pathseq {
 
     script:
     def maxmem = task.memory.toGiga()
+
+	def microbe_seq = ""
+	if (params.pathseq_db_microbe_fasta) {
+		microbe_seq = "--microbe-fasta ${params.pathseq_db_microbe_fasta}"
+	} else {
+		microbe_seq = "--microbe_dict ${params.pathseq_db_microbe_dict}"
+	}
+
     """
     mkdir -p ${sample.id}
 
@@ -19,7 +27,7 @@ process pathseq {
 		--filter-bwa-image ${params.pathseq_db_filter_bwa_image} \\
 		--kmer-file ${params.pathseq_db_kmer_file} \\
 		--min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
-		--microbe-fasta ${params.pathseq_db_microbe_fasta} \\
+		${microbe_seq} \\
 		--microbe-bwa-image ${params.pathseq_db_microbe_bwa_image} \\
 		--taxonomy-file ${params.pathseq_db_taxonomy_file} \\
 		--output ${sample.id}/${sample.id}.pathseq.bam \\
