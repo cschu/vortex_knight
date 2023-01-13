@@ -30,7 +30,7 @@ def bam_input_pattern = input_dir + "/" + "**.bam"
 
 workflow {
 
-	if (params.bam_input) {
+	if (params.bam_input_pattern) {
 		bam_input(
 			Channel.fromPath(bam_input_pattern)
 		)
