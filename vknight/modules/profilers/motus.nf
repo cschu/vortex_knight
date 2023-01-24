@@ -1,3 +1,8 @@
+params.motus_tax_level = "mOTU"
+params.motus_min_length = 75
+params.motus_n_marker_genes = 3
+
+
 process motus {
     publishDir params.output_dir, mode: params.publish_mode
 
