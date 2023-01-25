@@ -11,8 +11,9 @@ process kraken2 {
 
     script:
     def is_paired = (sample.is_paired) ? "--paired" : "";
+    def kraken_params = "--use-mpa-style --gzip-compressed ${is_paired}"
     """
     mkdir -p ${sample.id}
-    kraken2 --db ${kraken_db} --threads $task.cpus --minimum-hit-groups ${params.kraken2_min_hit_groups} --gzip-compressed --report ${sample.id}/${sample.id}.kraken2_report.txt ${is_paired} \$(ls $reads)
+    kraken2 --db ${kraken_db} --threads $task.cpus --minimum-hit-groups ${params.kraken2_min_hit_groups} --report ${sample.id}/${sample.id}.kraken2_report.txt ${kraken_params} \$(ls $reads)
     """
 }
