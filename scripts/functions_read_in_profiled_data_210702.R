@@ -48,30 +48,74 @@ library(progress)
   }
 }
 
-.f_read_in_mapseq_raw <- function(path_to_folder,tax.lvl="genus",fname_mode="vknight",account_for_paired_reads=TRUE){
+.f_metaphlanize_mapseq <- function(c.combined_df){
+  #Helper function for read_in_mapseq_raw
+  #takes mapseq output and creates a dataframe with the sum of counts at every taxonomic level
+  #also adds the prefixes to the individual tax levels
+  
+  taxLevel_short <- c("k__","p__","c__","o__","f__","g__","s__")
+  taxLevels <- c("kingdom","phylum","class","order","family","genus","species")
+  res_df <- tibble(tax=character(0),
+                   count=double(0))
+  #step 1 create df with only the tax levels and the added prefixes
+  tmp <- c.combined_df %>% 
+    select(-tax) %>% 
+    distinct() %>% 
+    as.data.frame()
+  j <- 2
+  for(j in seq(2,ncol(tmp))){
+    tmp[,j] <- paste0(taxLevel_short[j-1],tmp[,j])
+  }
+  taxReference_df <- 
+    tmp %>% 
+    mutate(across(.cols = -count,.fns = ~map(., str_replace_all,pattern = ".__NA",replacement = NA_character_))) %>% 
+    #unite("tax",kingdom:species,sep = "|",na.rm = T,remove = F) %>% 
+    unnest(cols=c(kingdom, phylum, class, order, family, genus, species)) %>% 
+    #relocate(tax) %>% 
+    as_tibble()
+  
+  
+  #Step2 now do the grouping individually and create res_df with total counts at the given tax level
+  res_df <- tibble(tax = character(0),
+                   count = double(0))
+  for(i in seq(1,length(taxLevels))){
+    taxLevel_df <- 
+      taxReference_df %>% 
+      select(count,!!as.symbol(taxLevels[1]):!!as.symbol(taxLevels[i])) %>% #select increasing number of tax levels
+      filter(!is.na(!!as.symbol(taxLevels[i]))) %>% #remove NAs in current tax level (reads are not resolved there)
+      unite("tax",-count,sep = "|") %>% 
+      group_by(tax) %>% 
+      summarise(count = sum(count))
+    res_df <- bind_rows(res_df,taxLevel_df)
+  }
+  return(res_df)
+}
+
+
+.f_read_in_mapseq_raw <- function(path_to_folder,fname_mode="vknight",account_for_paired_reads=TRUE,tax.lvl=NULL){
   #fname_mode defines how the filenames were constructed: 
   #vknight: SAMPLE_ID_R[0-9]_bac_ssu.mseq
   #manual: SAMPLE_ID_1.mseq
   #takes mapseq output files as input and returns a matrix with total counts at the selected taxonomic_level
   #if reads are paired, the counts are averaged between the forward and the reverse reads (fwd = 4x fuso, rev = 10x fuso --> 7x fuso) [if account_for_paired_reads == TRUE]
   #!!! Works only if .mseq file was computed with --outfmt simple !!!#
-  
-  flist <- list.files(path_to_folder,pattern = ".mseq")
-  if(length(flist)<1){message("No .mseq files in given directory")
+  tax.level <- 1
+  file_list <- list.files(path_to_folder,pattern = ".mseq")
+  if(length(file_list)<1){message("No .mseq files in given directory")
     stop
   }
   
   #Get the filenames that are expected in the .mseq folder
   if(fname_mode == "vknight"){
-    sample.names <- unique(str_remove(flist,pattern = "_R[0-9]_bac_ssu.mseq"))
+    sample.names <- unique(str_remove(file_list,pattern = "_R[0-9]_bac_ssu.mseq"))
     fwd_file_ending <- "_R1_bac_ssu.mseq"
     rev_file_ending <- "_R2_bac_ssu.mseq"
   }else if(fname_mode == "manual"){
-    sample.names <- unique(str_remove(flist,pattern = "_[0-9].mseq"))
+    sample.names <- unique(str_remove(file_list,pattern = "_[0-9].mseq"))
     fwd_file_ending <- "_1.mseq"
     rev_file_ending <- "_2.mseq"
     # }else if(fname_mode == "dada2"){
-    #   sample.names <- unique(str_remove(flist,pattern = ".mseq"))
+    #   sample.names <- unique(str_remove(file_list,pattern = ".mseq"))
     #   fwd_file_ending <- ".mseq"
     #   #rev_file_ending <- "_2.mseq"
     # }
@@ -80,7 +124,7 @@ library(progress)
     stop()
   }
   message(paste0("Importing ",length(sample.names)," samples"))
-  res.df <- tibble(!!tax.lvl := character())
+  count_df <- tibble(tax = character(0))
   pb <- progress_bar$new(total=length(sample.names))
   i <- 1
   for(i in seq(1,length(sample.names))){
@@ -88,7 +132,6 @@ library(progress)
     c.sample <- sample.names[i]
     
     #load forward and reverse reads
-    
     c.fwd <- tryCatch(
       {data.table::fread(file = paste0(path_to_folder,c.sample,fwd_file_ending),skip = 1,header = T)},
       error=function(e){
@@ -117,59 +160,46 @@ library(progress)
     
     c.combined <- rbind(c.fwd[,c(1,14)],
                         c.rev[,c(1,14)])
-    colnames(c.combined) <- c("read_id","tax_info")
+    colnames(c.combined) <- c("read_id","tax")
+    ### Do a grouping by tax level
+    c.combined <- c.combined %>% 
+      group_by(tax) %>% 
+      summarise(count = n())
     
-    tax.split <- data.table::tstrsplit(x = c.combined$tax_info,";")
+    ### split the taxonomy, add the taxon-prefixes and re-merge it
+    tax.split <- data.table::tstrsplit(x = c.combined$tax,";")
     #make list with 7 entries to match taxonomic tree
     if(length(tax.split)<7){tax.split[(length(tax.split)+1):7] <- NA}#fill with NAs up to species level
     c.combined[,c('kingdom', 'phylum', 'class','order', 'family', 'genus', 'species')] <- tax.split
-  
-    if(all(is.na(c.combined[[tax.lvl]]))){
-      next
-      pb$tick()
-    }#skip if no counts at tax level are present
-    #compute absolute abudnance
-    tax.counts <- c.combined %>%
-      select(-tax_info) %>% 
-      filter(str_detect(kingdom,pattern = "Bacteria|Archaea")) %>% 
-      group_by(!!as.symbol(tax.lvl)) %>%
-      mutate(!!as.symbol(tax.lvl) := str_remove(!!as.symbol(tax.lvl),pattern = "[a-zA-Z]__")) %>% ##remove "g__" from tax.lvl column name
-      mutate(!!as.symbol(tax.lvl) := case_when(!!as.symbol(tax.lvl) == "" ~ NA_character_,
-                                               TRUE~!!as.symbol(tax.lvl))) %>% 
-      summarize(counts = length(read_id)) %>%
-      arrange(desc(counts)) %>% 
-      mutate(!!tax.lvl := case_when(!(is.na(!!as.symbol(tax.lvl))) ~ !!as.symbol(tax.lvl),
-                                    TRUE ~ "not_resolved"))
-    rm(c.combined,c.fwd,c.rev)
-    #add bacterial counts
-    bact.counts <- tibble(!!as.symbol(tax.lvl) := "Bacteria",counts = sum(tax.counts$counts))
-    tax.counts <- bind_rows(bact.counts,tax.counts)
+    
+    res_df <- .f_metaphlanize_mapseq(c.combined_df = c.combined)
     
     #If reads are paired, divide counts by 2 (assuming )
     if(isTRUE(account_for_paired_reads) & sample.type=="paired"){
-      tax.counts <- tax.counts %>% mutate(counts = round(counts/2,0))
+      res_df <- res_df %>% mutate(count = round(count/2,0))
     }
-    colnames(tax.counts)[2] <- c.sample
+    ### merge with count_df
+    count_df <- 
+      count_df %>% 
+      full_join(.,res_df %>% rename(!!as.symbol(c.sample) := count),
+                by="tax")
     
-    res.df <- suppressMessages(full_join(res.df,tax.counts,by=tax.lvl))
+    #remove c.combined (to prevent for whatever reason that a failed sample leads to duplication of the previous one)
+    rm(res_df,c.combined)
     pb$tick()
-    
   }
-  
-  #create output matrix
-  
-  res.mat <- 
-    res.df %>% 
-    as.data.frame() %>% 
-    column_to_rownames(tax.lvl) %>% 
+  ### Create output matrix
+  count_mat <- count_df %>% 
+    as_tibble() %>% 
+    column_to_rownames("tax") %>% 
     replace(is.na(.),0) %>% 
     as.matrix()
   
-  return(res.mat)
+  return(count_mat)
 }
 
 
-.f_read_in_files_kraken2 <- function(path_to_folder,tax.level){
+.f_read_in_files_kraken2_TableOutput <- function(path_to_folder,tax.level){
   ### Read in kraken2 result files and return matrix with counts per bacteria and sample
   
   #convert tax.level to kraken2 compatible taxonoic symbol in order to subset the DF
@@ -272,6 +302,49 @@ library(progress)
   return(res.list)
 }
 
+.f_read_in_files_kraken2 <- function(path_to_folder,tax.level=NULL){
+  ### Read in kraken2 result files generated using the --use-mpa-style option (full taxonomy)
+  
+  file_list <- list.files(path=path_to_folder)  
+  tax.level = 1
+  ### initialize output df
+  count_df <- tibble(tax = character(0))
+  ### iterate over every file and select counts at the selected tax level
+  pb <- progress_bar$new(total=length(file_list))
+  i <- 1
+  for(i in seq(1,length(file_list))){
+    #message(i)
+    ### read in file
+    #chec if file is empty
+    if(file.info(paste0(path_to_folder,file_list[i]))$size==0){
+      message(paste0("\nSample ",file_list[i]," is empty - skipping"))
+      pb$tick()
+      next
+    }
+    c.f <-read.csv(paste0(path_to_folder,file_list[i]),header = FALSE,sep = "\t",comment.char = "",check.names = FALSE) %>% 
+      rename(tax = V1,count = V2) %>% 
+      as_tibble() %>% 
+      filter(str_detect(tax,"d__Bacteria|d__Archaea")) %>% ###keep only Archaea and Fungi
+      rename(!!as.symbol(str_remove(file_list[i],".kraken2.*")) := count)
+    
+    # join with count_df
+    count_df <- 
+      full_join(count_df,
+                c.f,
+                by="tax")
+    pb$tick()
+    #print(i)
+  }
+  
+  ### convert to output matrix
+  count_mat <- 
+    count_df %>% 
+    replace(is.na(.),0) %>% 
+    column_to_rownames("tax") %>% 
+    as.matrix()
+  
+  return(count_mat)
+}
 
 .f_read_in_files_PathSeq <- function(path_to_folder,tax.level){
   ### Read PathSeq output files, select tax level (eg genus) and return 2 matrices:
@@ -383,14 +456,13 @@ library(progress)
 }
 
 .f_read_in_files_mOTUs <- function(path_to_folder){
-  # reads in output from mOTUs profiler
-  #attention: no information about the total sum of bacterial reads is provided by mOTUs
+  #manually merges mOTUs raw counts from varius runs and returns count matrix with full taxonomy
+  #return matrix with full length taxonomy (kingdom --> mOTUs)
   
-  #consider only counts from bacterial small subunit (bac_ssu)
   file_list <- list.files(path=path_to_folder,pattern = ".txt")
+  message("Collating mOTUs results for ",length(file_list), " samples")
   
-  #if forward and reverse files are present: merge them and sum up counts
-  count.df <- tibble(taxonomy=character(0))
+  count_df <- tibble(tax=character(0))
   pb <- progress_bar$new(total=length(file_list))
   i <- 1
   for(i in seq(1,length(file_list))){
@@ -398,38 +470,34 @@ library(progress)
       message(paste0("Sample ",file_list[i]," is empty - skipping"))
       next
     }
-    tmp.file <- read.table(paste0(path_to_folder,file_list[i]),sep = "\t",comment.char = "",skip = 2,header = T)
-    colnames(tmp.file)[1] <- "taxonomy"
-    colnames(tmp.file)[-1] <- str_remove(file_list[i],".txt")
-    tmp.file <- tmp.file %>% mutate_at(vars(-taxonomy),as.numeric)
+    tmp.file <- read_tsv(paste0(path_to_folder,file_list[i]),skip = 2,show_col_types = F)
+    colnames(tmp.file)[1] <- "mOTU"
+    colnames(tmp.file)[2] <- "taxonomy"
+    colnames(tmp.file)[3] <- str_remove(file_list[i],".txt")
     
-    count.df <- full_join(count.df,tmp.file,by="taxonomy")  
+    #merge "mOTU" column with the taxonomy column and merge by rownames
+    tmp.file <- suppressMessages(tmp.file %>% 
+                                   mutate_at(vars(-taxonomy,-mOTU),as.numeric) %>% 
+                                   unite("tax",taxonomy,mOTU,sep = "|"))
+    
+    count_df <- full_join(count_df,tmp.file,by="tax")  
+    
     pb$tick()
   }
-  #add first row (usually with total bacterial counts, but mOTUs does not provide this information in the output) 
-  #-> however, add "total counts on genus level", to have a first row (consistent with the other tools)
-  
-  #add first row with total bacterial counts: in the case of mOTUs: represents the colSums, since "unassigned" bacteria are also included
-  #therefore: add colSums and remove the row with "unassigned"
-  
-  tmp <- as.data.frame(t(colSums(count.df[,-1],na.rm = TRUE))) %>% 
-    add_column(taxonomy = "Bacteria") %>% relocate(taxonomy)
-  #remove the row containing "unassigned" bacterial counts --> this is already represented in "Bacteria"
-  count.df <- bind_rows(tmp,count.df %>% filter(taxonomy != "unassigned"))
-  
-  ### convert to output matrix
-  count.df <- count.df %>% mutate_at(vars(-taxonomy),as.numeric)
-  count.mat <- as.matrix(count.df[,-1])
-  rownames(count.mat) <- (count.df$taxonomy)
-  count.mat[is.na(count.mat)] <- 0
-  
+  #rename the "unassigned" fraction properly
+  count_df <- count_df %>% 
+    mutate(tax = case_when(tax == "unassigned|unassigned"~"unassigned",TRUE~tax))
+  #### convert to output matrix ####
+  count_mat <- count_df %>% 
+    column_to_rownames("tax") %>% 
+    as.matrix()
   #remove all-zero rows
-  count.mat <- count.mat[rowSums(count.mat)>0,,drop=FALSE]
+  count_mat <- count_mat[rowSums(count_mat)>0,,drop=FALSE]
   #clean sample names
-  colnames(count.mat) <- sub(colnames(count.mat),pattern = ".motus",replacement = "")
-  return(count.mat)
+  colnames(count_mat) <- str_remove(colnames(count_mat),pattern = ".motus")
+  
+  return(count_mat)
 }
-
 .f_read_in_files_mTAGsProfile_merged <- function(path_to_folder = mTAGs_profile_folder,tax.level = "genus"){
   # reads in merged mTAGs profile output file
   # So far: works only on genus level! 
@@ -487,18 +555,17 @@ library(progress)
   return(count.mat)
 }
 
-
 .f_read_in_libsize <- function(path_to_folder){
   file_list <- list.files(path_to_folder)
   
   df.libsize <- tibble()
   for(i in seq(1,length(file_list))){
     tmp.file <- read.table(paste0(path_to_folder,file_list[i]),sep = "\t",comment.char = "",header = F)
-    tmp.file$ID <- sub(file_list[i],pattern = ".libsize.txt",replacement = "")
-    colnames(tmp.file)[1] <- "libsize"
+    tmp.file$Sample_ID <- sub(file_list[i],pattern = ".libsize.txt",replacement = "")
+    colnames(tmp.file)[1] <- "libsize_counts"
     df.libsize <- bind_rows(df.libsize,tmp.file)
   }
-  df.libsize <- df.libsize %>% relocate(ID)
+  df.libsize <- df.libsize %>% relocate(Sample_ID)
   return(df.libsize)
 }
 
@@ -512,12 +579,12 @@ library(progress)
       next
     }else{
       tmp.file <- read.table(paste0(path_to_folder,file_list[i]),sep = "\t",comment.char = "",header = F)
-      tmp.file$ID <- sub(file_list[i],pattern = ".is_paired.txt",replacement = "")
+      tmp.file$Sample_ID <- sub(file_list[i],pattern = ".is_paired.txt",replacement = "")
       colnames(tmp.file)[1] <- "lib_layout"
       df.lib_layout <- bind_rows(df.lib_layout,tmp.file)
     }
   }
-  df.lib_layout <- df.lib_layout %>% relocate(ID)
+  df.lib_layout <- df.lib_layout %>% relocate(Sample_ID)
   return(df.lib_layout)
 }
 
@@ -544,13 +611,13 @@ library(progress)
   #'exports a tibble with Sample_ID and raw_read_count
   file_list <- list.files(path_to_folder)
   
-  df.raw_counts <- tibble(Sample_ID=character(),raw_counts=double())
+  df.raw_counts <- tibble(Sample_ID=character(),libsize_raw_counts=double())
   for(i in seq(1,length(file_list))){
     tmp.file <- read.table(paste0(path_to_folder,file_list[i]),sep = "\t") %>% 
       separate(V1,sep = " ",into = c("paired_info","V1")) %>% 
       mutate(paired_info = as.numeric(paired_info))
     tmp.raw_counts <- tibble(Sample_ID = str_remove(file_list[i],pattern = ".txt"),
-                             raw_counts = tmp.file$paired_info * tmp.file$V2)
+                             libsize_raw_counts = tmp.file$paired_info * tmp.file$V2)
     
     df.raw_counts <- bind_rows(df.raw_counts,tmp.raw_counts)
   }
@@ -717,57 +784,67 @@ library(progress)
 #   return(mat.new)
 # }
 
-.f_map_asv_to_tax <- function(asv_tsv,tax.mseq,tax_lvl){
-  
-  c_tax <- 
-    tax.mseq %>% 
-    filter(kingdom == "d__Bacteria") %>% 
-    filter(!(is.na(!!as.symbol(tax_lvl)))) %>% 
-    select(ASV,!!as.symbol(tax_lvl))
+.f_map_asv_to_tax <- function(asv_tsv,path_to_ASV.mseq,tax_lvl){
   
   
+  #Read in the raw mapseq output and create tsv file
+  c.fwd <- tryCatch(
+    {data.table::fread(file = path_to_ASV.mseq,skip = 1,header = T)},
+    error=function(e){
+      c.fwd <- data.frame(matrix(ncol = 15,nrow = 0))
+    }
+  )
+  colnames(c.fwd) <- as.character(seq(1,ncol(c.fwd)))
+  c.combined <- c.fwd[,c(1,14)]
+  colnames(c.combined) <- c("ASV","tax_info")
   
+  tax.split <- data.table::tstrsplit(x = c.combined$tax_info,";")
+  #make list with 7 entries to match taxonomic tree
+  if(length(tax.split)<7){tax.split[(length(tax.split)+1):7] <- NA}#fill with NAs up to species level
+  c.combined[,c('kingdom', 'phylum', 'class','order', 'family', 'genus', 'species')] <- tax.split
   
-  #get total bacterial counts (sum of ASV that are mapped to the database of interes)
-  bac.counts.mat <- 
+  #now take the asv_table, merge with the taxonomy and calculate relative abundance at taxonomic level
+  tax_counts_df <- 
     asv_tsv %>% 
-    as_tibble(rownames = "ASV") %>% 
+    rownames_to_column("ASV") %>% 
+    as_tibble() %>% 
     gather(-ASV,key = "Sample_ID",value = "count") %>% 
-    left_join(.,tax.mseq %>% 
-                filter(kingdom == "d__Bacteria") %>% 
-                select(ASV,kingdom)) %>% 
-    filter(!is.na(kingdom)) %>% 
+    inner_join(.,c.combined %>% select(-tax_info)) %>% 
+    select(Sample_ID,count,!!as.symbol(tax_lvl)) %>% 
+    group_by(Sample_ID,!!as.symbol(tax_lvl)) %>% 
+    summarise(count = sum(count)) %>% 
+    ungroup() %>% 
+    mutate(!!as.symbol(tax_lvl) := str_remove(!!as.symbol(tax_lvl),pattern = "[a-zA-Z]__")) %>% 
+    mutate(!!as.symbol(tax_lvl) := case_when(is.na(!!as.symbol(tax_lvl))~"not_resolved",
+                                             TRUE~!!as.symbol(tax_lvl))) %>% 
+    arrange(-count) %>% 
     group_by(Sample_ID) %>% 
-    summarise(sum_bacteria = sum(count)) %>% 
-    add_column(names = "Bacteria") %>% 
-    pivot_wider(names_from = Sample_ID,values_from = sum_bacteria) %>% 
-    column_to_rownames("names") %>% 
+    mutate(count_rel = count/sum(count)) %>% 
+    ungroup()
+  
+  #create count matrix  
+  counts_mat <- 
+    tax_counts_df %>% 
+    select(Sample_ID,!!as.symbol(tax_lvl),count) %>% 
+    pivot_wider(names_from = Sample_ID,values_from = count,values_fill = 0) %>% 
+    column_to_rownames(tax_lvl) %>% 
     as.matrix()
   
+  #add bacterial counts
+  bacMat <- (as.matrix(t(colSums(counts_mat))))
+  rownames(bacMat) <- "Bacteria"
+  counts_mat <- rbind(bacMat,counts_mat)
   
-  asv.mat <- 
-    asv_tsv %>% 
-    as_tibble(rownames = "ASV") %>% 
-    gather(-ASV,key = "Sample_ID",value = "count") %>% 
-    inner_join(.,c_tax) %>% 
-    group_by(Sample_ID,!!as.symbol(tax_lvl)) %>% 
-    mutate(!!as.symbol(tax_lvl) := str_replace_all(!!as.symbol(tax_lvl),pattern = "[a-z]__",replacement = "")) %>% #remove "g__"
-    mutate(!!as.symbol(tax_lvl) := str_replace_all(!!as.symbol(tax_lvl),pattern = "\\_[A-Z]$",replacement = "")) %>% #gather GTDB tax
-    summarise(count = sum(count)) %>%
-    pivot_wider(names_from = Sample_ID,values_from = count) %>% 
+  #create relCount matrix
+  countsRel_mat <- 
+    tax_counts_df %>% 
+    select(Sample_ID,!!as.symbol(tax_lvl),count_rel) %>% 
+    pivot_wider(names_from = Sample_ID,values_from = count_rel,values_fill = 0) %>% 
     column_to_rownames(tax_lvl) %>% 
-    as.matrix() %>%
-    replace(is.na(.),0)
+    as.matrix()
   
-  bac.counts.mat
-  stopifnot(colnames(bac.counts.mat) == colnames(asv.mat))
-  
-  not_resolved.mat <- 
-    bac.counts.mat-colSums(asv.mat)
-  rownames(not_resolved.mat) <- "not_resolved"
-  #combine everything
-  res.mat <- rbind(bac.counts.mat,not_resolved.mat,asv.mat)
-  return(res.mat)
+  #so far: only export count matrix (do the read in later with vknight read in functions)
+  return(counts_mat)
   
 }
 
