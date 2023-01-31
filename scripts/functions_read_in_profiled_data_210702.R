@@ -101,7 +101,7 @@ library(progress)
   
   # case2: taxonomic assignment differs between fwd and reverse reads at some level:
   # Take last common ancestor
-  
+  i <- 1
   for(i in seq(1,nrow(fwdNonMatching_mat))){
     vec1 <- fwdNonMatching_mat[i,]
     vec2 <- revNonMatching_mat[i,]
@@ -115,10 +115,13 @@ library(progress)
       else{
         result_mat[i,] <- vec2
       }
+      
     }else{#if not all resolved taxa are the same: take the last shared taxa
       sharedTaxVec <- rep(NA,ncol(result_mat))
       maxSharedLevel <- max(which(vec1==vec2),na.rm = T)
-      sharedTaxVec[1:maxSharedLevel] <- vec1[1:maxSharedLevel]
+      if(is.finite(maxSharedLevel)){
+        sharedTaxVec[1:maxSharedLevel] <- vec1[1:maxSharedLevel]
+      }
       result_mat[i,] <- sharedTaxVec
     }
   }
