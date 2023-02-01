@@ -118,13 +118,16 @@ library(progress)
       
     }else{#if not all resolved taxa are the same: take the last shared taxa
       sharedTaxVec <- rep(NA,ncol(result_mat))
-      maxSharedLevel <- max(which(vec1==vec2),na.rm = T)
+      maxSharedLevel <- suppressWarnings(max(which(vec1==vec2),na.rm = T))
       if(is.finite(maxSharedLevel)){
         sharedTaxVec[1:maxSharedLevel] <- vec1[1:maxSharedLevel]
       }
       result_mat[i,] <- sharedTaxVec
     }
   }
+  #remove rows with only NA values (when fwd and rev read have entirely different taxonomies)
+  result_mat <- result_mat[rowSums(is.na(result_mat))<ncol(result_mat),]
+  
   return(result_mat)
 }
 
