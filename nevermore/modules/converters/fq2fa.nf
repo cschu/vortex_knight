@@ -14,6 +14,7 @@ process fq2fa {
 	}
 
 	"""
+	set -e -o pipefail
 	mkdir -p out/
 	reformat.sh -Xmx${maxmem}g in=${sample.id}_R1.fastq.gz out=out/${sample.id}_R1.fasta ${r2} trimreaddescription=t ${qual_modifier}
 	"""
