@@ -90,42 +90,39 @@ library(progress)
   }
   return(res_df)
 }
-.f_correctNonMatchingTaxAssignments_mapseq <- function(fwdNonMatching_mat,revNonMatching_mat){
-  
-  result_mat <- data.frame(matrix(nrow = nrow(fwdNonMatching_mat),ncol = ncol(fwdNonMatching_mat)))
-  colnames(result_mat) <- colnames(fwdNonMatching_mat)
-  rownames(result_mat) <- rownames(fwdNonMatching_mat)
-  
+.f_correctNonMatchingTaxAssignments_mapseq <- function(mat1,mat2){
   # case1: taxonomic assignment of one read is "deeper" than the other (but all levels are matching):
   # Take deeper annotation
   
   # case2: taxonomic assignment differs between fwd and reverse reads at some level:
   # Take last common ancestor
-  i <- 1
-  for(i in seq(1,nrow(fwdNonMatching_mat))){
-    vec1 <- fwdNonMatching_mat[i,]
-    vec2 <- revNonMatching_mat[i,]
-    #if there are no mismatches and the only difference is the taxonomic depth: take the deeper level
-    if(!(any(vec1!=vec2,na.rm = T))){
-      maxLevel_vec1 <- max(which(!is.na(vec1)))
-      maxLevel_vec2 <- max(which(!is.na(vec2)))
-      if(maxLevel_vec1 > maxLevel_vec2){
-        result_mat[i,] <- vec1
+  
+  #this function was mostly written by ChatGPT and significantly increases performance compared to the old version (pre-2023-02-07)
+  n_rows <- nrow(mat1)
+  consensus_matrix <- matrix(NA, nrow = n_rows, ncol = 7)
+  
+  pb_1 <- progress_bar$new(total=nrow(consensus_matrix))
+  for (i in 1:n_rows) {
+    taxonomy1 <- as.character(mat1[i,])
+    taxonomy2 <- as.character(mat2[i,])
+    j <- 3
+    #message(i)
+    for (j in 1:7) {
+      if (isTRUE(taxonomy1[j] == taxonomy2[j])) {
+        consensus_matrix[i, j] <- taxonomy1[j]
+      } else if (is.na(taxonomy1[j] == taxonomy2[j])){#if one of the entries is NA, fill with the other entry
+        consensus_matrix[i, j] <- ifelse(is.na(taxonomy1[j]), taxonomy2[j], taxonomy1[j])
+      } else{
+        break #if there os no match and also no NA in one of the two: break
       }
-      else{
-        result_mat[i,] <- vec2
-      }
-      
-    }else{#if not all resolved taxa are the same: take the last shared taxa
-      sharedTaxVec <- rep(NA,ncol(result_mat))
-      maxSharedLevel <- max(which(vec1==vec2),na.rm = T)
-      if(is.finite(maxSharedLevel)){
-        sharedTaxVec[1:maxSharedLevel] <- vec1[1:maxSharedLevel]
-      }
-      result_mat[i,] <- sharedTaxVec
     }
+    pb_1$tick()
   }
-  return(result_mat)
+  #remove rows with only NA values (when fwd and rev read have entirely different taxonomies)
+  rownames(consensus_matrix) <- rownames(mat1)
+  colnames(consensus_matrix) <- colnames(mat1)
+  consensus_matrix <- consensus_matrix[rowSums(is.na(consensus_matrix))<ncol(consensus_matrix),]
+  return(consensus_matrix)
 }
 
 .f_read_in_mapseq_raw <- function(path_to_folder,fname_mode="vknight",
@@ -222,7 +219,6 @@ library(progress)
       readNames_intersect <- intersect(rownames(fwd_mat),rownames(rev_mat))
       fwd_readsIntersect_mat <- fwd_mat[readNames_intersect,]
       rev_readsIntersect_mat <- rev_mat[readNames_intersect,]
-      #message("\n",length(unique(c.combined$read_id))-length(readNames_intersect), " out of ", length(unique(c.combined$read_id))," reads has no matching mate")
       
       # for the taxonomies that match: keep them as is
       matching_reads_mat <- fwd_readsIntersect_mat[fwd_readsIntersect_mat$tax == rev_readsIntersect_mat$tax,
@@ -232,6 +228,12 @@ library(progress)
                            rev_mat[!(rownames(rev_mat)%in%readNames_intersect),])
       matching_reads_mat <- rbind(matching_reads_mat,orphans_mat[,colnames(orphans_mat)!="tax"])
       
+      #get some statistics about matching/non-matching
+      nMatching <- nrow(matching_reads_mat)
+      nNonMatching <- length(unique(c.combined$read_id))-nMatching
+      fracNonMatching <- round(nNonMatching / (nMatching+nNonMatching) * 100,0)
+      message(nNonMatching," reads (",fracNonMatching,"%) have non-identical taxonomic annotation")
+      
       # for the reads that don't have matching taxonomy annotations: process them accordingly
       fwdNonMatching_mat <- fwd_readsIntersect_mat[fwd_readsIntersect_mat$tax != rev_readsIntersect_mat$tax,
                                                    colnames(fwd_readsIntersect_mat)!="tax"]
@@ -239,9 +241,9 @@ library(progress)
                                                    colnames(rev_readsIntersect_mat)!="tax"]
       # If there are non matching taxonomies between fwd and rev reads: harmonize them
       if(nrow(fwdNonMatching_mat)>0){
-        nonMatching_reads_fixed_mat <- .f_correctNonMatchingTaxAssignments_mapseq(fwdNonMatching_mat = fwdNonMatching_mat,
-                                                                                  revNonMatching_mat = revNonMatching_mat)
-      }else{nonMatching_reads_fixed_mat <- matrix(NA,nrow = 0,ncol = ncol(matching_reads_mat),dimnames = list(NULL,colnames(matching_reads_mat)))}
+        nonMatching_reads_fixed_mat <- .f_correctNonMatchingTaxAssignments_mapseq(mat1 = fwdNonMatching_mat,
+                                                                                  mat2 = revNonMatching_mat)
+      }else{nonMatching_reads_fixed_mat <- data.frame(matrix(NA,nrow = 0,ncol = ncol(matching_reads_mat),dimnames = list(NULL,colnames(matching_reads_mat))))}
       
       #combine the read matrices and proceed and unite the taxonomy in order to do an initial grouping before assigning the tax-prefixes (saves time)
       combined_reads_df <- rbind(matching_reads_mat,
@@ -474,7 +476,7 @@ library(progress)
 
 .f_read_in_files_PathSeq <- function(path_to_folder,tax.level){
   ### Read PathSeq output files, select tax level (eg genus) and return 2 matrices:
-  #1) matrix with score_normalized values
+  #1) matrix with pathseq scores values
   #2) with count values of !unambiguously! mapped reads
   
   
@@ -483,15 +485,17 @@ library(progress)
     file_list <- list.files(path=path_to_folder,pattern = "\\.scores$")  
   }
   
-  tax.sym <- tax.level
+  
   
   ### initialize output df
   score.df <- tibble(tax.name = character(0),tax_id=double(0))
   counts.df <- tibble(tax.name = character(0),tax_id=double(0))
-
+  
   ### iterate over every file and select counts at the selected tax level
   empty.counter <- 0
   pb <- progress_bar$new(total=length(file_list))
+  i <- 1
+  
   for(i in seq(1,length(file_list))){
     ## read in file
     #c.f <-read_tsv(paste0(path_to_folder,file_list[i]),col_types = cols())
@@ -519,16 +523,17 @@ library(progress)
       summarise(score = sum(score),
                 unambiguous = sum(unambiguous)) %>% 
       add_column(tax_id = 0000) %>%  #just to have a tax_id
-    bind_rows(.,c.f %>% filter(kingdom %in% c("Bacteria","Archaea"),
-                               type == tax.sym)) %>% 
+      bind_rows(.,c.f %>% filter(kingdom %in% c("Bacteria","Archaea"),
+                                 type == tax.level)) %>% 
       mutate(score_normalized = score/score[1]*100)
     
+    # Extract the pathseq scores 
     c.score.df <-
       c.combined.df %>% 
-      select(name,tax_id,score_normalized) %>%
-      rename(!!gsub(x = file_list[i],pattern = ".pathseq.txt",replacement = "") := score_normalized,
+      select(name,tax_id,score) %>%
+      rename(!!gsub(x = file_list[i],pattern = ".pathseq.txt",replacement = "") := score,
              tax.name = name)
-
+    
     # also unambiguous counts
     c.counts.df <-
       c.combined.df %>% 
@@ -552,7 +557,7 @@ library(progress)
                                                        TRUE ~ tax.name)) %>% 
     select(-tax_id)
   counts.df <- counts.df %>% mutate(tax.name = case_when(tax_id == 1980680 ~ "Alterileibacterium",
-                                                       TRUE ~ tax.name)) %>% 
+                                                         TRUE ~ tax.name)) %>% 
     select(-tax_id)
   
   
@@ -576,7 +581,7 @@ library(progress)
   
   
   res.list <- list(score.mat,counts.mat)
-  names(res.list) <- c("score_normalized.mat","counts_unambiguous.mat")
+  names(res.list) <- c("score.mat","counts_unambiguous.mat")
   
   return(res.list)
 }
@@ -750,25 +755,27 @@ library(progress)
   return(df.raw_counts)
 }
 
-.f_read_in_read_counter <- function(path_to_folder,min_genes,marker_genes.df,tax.level="genus",norm_to_gene_length=TRUE){
+.f_read_in_read_counter <- function(path_to_folder,min_genes,marker_genes.df,tax.level=NULL,norm_to_gene_length=TRUE){
   #Creates count matrix from folder of read_counter output files considering all species that were hit with at least <min_genes> marker genes
   #normalization: Assumes read_counter was run with "-y insert.raw_counts"; if norm_to_gene_length == TRUE, normalization is performed via:
   #1) sum up counts per species over all marker genes
   #2) divide by total length of marker genes for the given species
   #3) multiply by average length of marker genes over all species in the DB
   
+  #deprecated but left as optional in order to not break the scripts
+  tax.level <- NULL
+  
   stopifnot(is_tibble(marker_genes.df))
   
   file_list <- list.files(path=path_to_folder)
   message(paste0(length(file_list)," files in the given folder"))
   ### initialize output df
-  counts.df <- tibble(!!as.symbol(tax.level) := character(0))
+  counts_df <- tibble(tax = character(0))
   ### iterate over every file and select counts at the selected tax level
   pb <- progress_bar$new(total=length(file_list))
   for(i in seq(1,length(file_list))){
     #message(i)
     sample.name <- file_list[i]
-
     tmp.file <- tryCatch(
       {data.table::fread(file = paste0(path_to_folder,sample.name),sep = "\t",skip = 1)},
       error=function(e){
@@ -781,32 +788,32 @@ library(progress)
       next
     }
     
-    
     file.name <- str_remove_all(sample.name,pattern = "\\.read_counter.txt|\\.txt")
-    
     c.counts <- suppressMessages(.f_read_counter_to_count_mat(read_counter_out.file = tmp.file,
-                                                              file.name = file.name,
                                                               min_genes = min_genes,
                                                               marker_genes.df = marker_genes.df,
                                                               tax.level = tax.level,
                                                               norm_to_gene_length=norm_to_gene_length))
-    counts.df <- suppressMessages(full_join(counts.df,c.counts))
+    counts_df <- suppressMessages(full_join(counts_df,c.counts %>% rename(!!as.symbol(file.name) := avg)))
     pb$tick()
   }
   
   #create output matrix
-  counts.mat <- 
-    counts.df %>% 
-    mutate(!!as.symbol(tax.level) := str_remove(!!as.symbol(tax.level),pattern = ".__")) %>% 
+  counts_mat <- 
+    counts_df %>% 
     as.data.frame() %>% 
-    column_to_rownames(tax.level) %>% 
+    column_to_rownames("tax") %>% 
     replace(is.na(.),0) %>% 
     as.matrix()
-  
-  return(counts.mat)
+    
+  return(counts_mat)
 }
 
-.f_read_counter_to_count_mat <- function(read_counter_out.file,file.name,min_genes,marker_genes.df,tax.level="genus",norm_to_gene_length=TRUE){
+.f_read_counter_to_count_mat <- function(read_counter_out.file,file.name=NULL,min_genes,marker_genes.df,tax.level="genus",norm_to_gene_length=TRUE){
+  
+  #deprecated
+  file.name <- NULL
+  
   #takes output file from read_counter tool and returns the median counts aggregated by the selected taxonomic rank
   c.df <-
     read_counter_out.file %>%
@@ -819,7 +826,7 @@ library(progress)
     rename(read_count  = V2)
   
   #get bacterial counts (only valid if read_counter is run with mode "-y insert.raw_counts")
-  bact.counts <- tibble(!!as.symbol(tax.level) := "Bacteria", !!as.symbol(file.name) := sum(c.df$read_count))
+  totalBactCounts <- sum(c.df$read_count)
   
   #Determine how many marker genes were identified at species level to threshold species
   c.N_genes <- (c.df %>% select(species,gene) %>%  group_by(species) %>% summarise(n=n()))
@@ -853,20 +860,21 @@ library(progress)
       summarise(avg = median(read_count))
   }
   
-  #Select the taxonomic level of interest and sum up all the (normalized)counts up to the selected level
+  #select all species that passed the filter and return the entire taxonomic annotation
   c.tax.counts <-
     c.df %>%
-    select(!!as.symbol(tax.level),species) %>%
+    select(-read_count,-gene) %>% 
     inner_join(.,c.by_species %>% select(species,avg)) %>%
     distinct() %>%
-    group_by(!!as.symbol(tax.level)) %>%
-    #summarise(!!file.name := round(sum(avg),0)) %>%  #Do not round normalized counts since this could lead to false-zeros
-    summarise(!!file.name := sum(avg)) %>% 
-    bind_rows(bact.counts,.)
+    unite("tax",kingdom:species,sep = "|")
   
+  #add "unassigned" bacterial counts (assigned to species not passing the marker gene threshold)
+  unassigned_df <- tibble(tax = "unassigned",avg = totalBactCounts - sum(c.tax.counts$avg))
   
+  res_df <- 
+    bind_rows(c.tax.counts,unassigned_df)
   
-  return(c.tax.counts)
+  return(res_df)
 }
 
 # .f_ASV_to_tax <- function(lvl,asv_table,mseq.output){
