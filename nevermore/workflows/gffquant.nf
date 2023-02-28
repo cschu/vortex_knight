@@ -11,18 +11,18 @@ workflow gffquant_flow {
 
 		run_gffquant(bam_ch, params.gffquant_db)
 
-		feature_count_ch = run_gffquant.out.results //.collect()
+		feature_count_ch = run_gffquant.out.results
 			.map { sample, files -> return files }
 			.flatten()
-			.filter { !it.name.endsWith("gene_counts.txt") }
-			.filter { !it.name.endsWith("seqname.uniq.txt") }
-			.filter { !it.name.endsWith("seqname.dist1.txt") }
+			.filter { !it.name.endsWith("Counter.txt.gz") }
+			.filter { !it.name.endsWith(".domain.coverage.txt.gz" }
 			.map { file -> 
-				def category = file.name.replaceAll(/\.txt$/, "")
+				def category = file.name
+					.replaceAll(/\.txt\.gz$/, "")
 					.replaceAll(/.+\./, "")
 				return tuple(category, file)
 			}
-			.groupTuple(sort:true)
+			.groupTuple(sort: true)
 
 		collate_feature_counts(feature_count_ch)
 
