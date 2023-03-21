@@ -12,7 +12,7 @@ process qc_bbduk {
 
     script:
     def maxmem = task.memory.toGiga()
-    def compression = (reads[0].name.endsWith(".gz")) ? "gz" : "bz2"
+    def compression = (reads[0].name.endsWith("gz")) ? "gz" : "bz2"
 
     def read2 = ""
     def orphan_check = ""
