@@ -208,8 +208,8 @@ workflow vknight_main {
 				}
 
 			}
+			
 
-			collate_stats(collate_ch.collect())
 		}
 
 		} else {
@@ -231,6 +231,16 @@ workflow vknight_main {
 			"qc"
 		)
 
+		collate_ch = nevermore_simple_preprocessing.out.raw_counts
+			.map { sample, file -> return file }
+			.collect()
+			.concat(
+				fastqc.out.counts
+					.map { sample, file -> return file }
+					.collect()
+			)
+		
+		collate_stats(collate_ch.collect())
 		//
 
 		if (get_basecounts || run_bam_analysis) {
