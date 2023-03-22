@@ -16,7 +16,7 @@ process pathseq {
 	if (params.pathseq_db_microbe_fasta) {
 		microbe_seq = "--microbe-fasta ${params.pathseq_db_microbe_fasta}"
 	} else {
-		microbe_seq = "--microbe_dict ${params.pathseq_db_microbe_dict}"
+		microbe_seq = "--microbe-dict ${params.pathseq_db_microbe_dict}"
 	}
 
     """
