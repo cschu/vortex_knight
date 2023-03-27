@@ -252,9 +252,9 @@ def main():
 
 	args = ap.parse_args()
 
-	valid_fastq_suffixes = tuple(f".{suffix}" for suffix in args.valid_fastq_suffixes.split(","))
+	valid_fastq_suffixes = tuple(f"{suffix}" for suffix in args.valid_fastq_suffixes.split(","))
 	print(valid_fastq_suffixes)
-	valid_compression_suffixes = tuple(f".{suffix}" for suffix in args.valid_compression_suffixes.split(","))
+	valid_compression_suffixes = tuple(f"{suffix}" for suffix in args.valid_compression_suffixes.split(","))
 	print(valid_compression_suffixes)
 
 	fastq_file_suffix_pattern = r"[._](" + \
