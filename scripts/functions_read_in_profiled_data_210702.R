@@ -121,7 +121,7 @@ library(progress)
   #remove rows with only NA values (when fwd and rev read have entirely different taxonomies)
   rownames(consensus_matrix) <- rownames(mat1)
   colnames(consensus_matrix) <- colnames(mat1)
-  consensus_matrix <- consensus_matrix[rowSums(is.na(consensus_matrix))<ncol(consensus_matrix),]
+  consensus_matrix <- consensus_matrix[rowSums(is.na(consensus_matrix))<ncol(consensus_matrix),,drop=F]
   return(consensus_matrix)
 }
 
@@ -167,7 +167,7 @@ library(progress)
   message(paste0("Importing ",length(sample.names)," samples"))
   count_df <- tibble(tax = character(0))
   pb <- progress_bar$new(total=length(sample.names))
-  i <- 2
+  i <- 1
   for(i in seq(1,length(sample.names))){
     #message(i)
     c.sample <- sample.names[i]
@@ -207,7 +207,15 @@ library(progress)
     ### split the taxonomy, add the taxon-prefixes and re-merge it
     tax.split <- data.table::tstrsplit(x = c.combined$tax,";")
     #make list with 7 entries to match taxonomic tree
-    if(length(tax.split)<7){tax.split[(length(tax.split)+1):7] <- NA}#fill with NAs up to species level
+    if(length(tax.split)<7){
+      N <- 7-length(tax.split)
+      NA_list <- vector("list", N)
+      # Populate the list with vectors of NAs (must be NA characters since otherwise they would be converted to logicals by data.table)
+      for (z in 1:N) {
+        NA_list[[z]] <- rep(as.character(NA), nrow(c.combined))
+      }
+      tax.split <- c(tax.split,NA_list)
+    }
     c.combined[,c('kingdom', 'phylum', 'class','order', 'family', 'genus', 'species')] <- tax.split
     
     # If sample is paired-end do assign the taxonomie based on the agreement between read pairs
@@ -232,7 +240,7 @@ library(progress)
       nMatching <- nrow(matching_reads_mat)
       nNonMatching <- length(unique(c.combined$read_id))-nMatching
       fracNonMatching <- round(nNonMatching / (nMatching+nNonMatching) * 100,0)
-      message(nNonMatching," reads (",fracNonMatching,"%) have non-identical taxonomic annotation")
+      message("\n",nNonMatching," reads (",fracNonMatching,"%) have non-identical taxonomic annotation")
       
       # for the reads that don't have matching taxonomy annotations: process them accordingly
       fwdNonMatching_mat <- fwd_readsIntersect_mat[fwd_readsIntersect_mat$tax != rev_readsIntersect_mat$tax,
