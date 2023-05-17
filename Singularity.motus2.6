@@ -28,16 +28,16 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
 
   apt-get install -y wget python3-pip git dirmngr gnupg ca-certificates build-essential libssl-dev libcurl4-gnutls-dev libxml2-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev
 
-  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
-  add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/'
+  # apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
+  # add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu focal-cran40/'
 
-  apt-get install -y r-base r-base-dev
+  # apt-get install -y r-base r-base-dev
   
-  R --version
+  # R --version
   python3 --version
     
   # installing packages from cran
-  R --slave -e 'install.packages(c("devtools", "tidyverse", "optparse", "stringr", "progress"), repos="https://cran.rstudio.com/", dependencies=TRUE)'
+  # R --slave -e 'install.packages(c("devtools", "tidyverse", "optparse", "stringr", "progress"), repos="https://cran.rstudio.com/", dependencies=TRUE)'
 
   # installing profilers
   mkdir -p /opt/software
@@ -49,21 +49,11 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
 
   # install what you can via conda
   # /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda hmmer 'samtools>=1.13' bwa kraken2 'gatk4==4.1.6.0-0' fastqc multiqc bbmap seqtk
-  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda \
-	  'hmmer=3.3.2=h1b792b2_1' \
-    'samtools=1.13=h8c37831_0' \
-    'bwa=0.7.17=h5bf99c6_8' \
-    'kraken2=2.1.2=pl5262h7d875b9_0' \
-    'gatk4=4.1.6.0=py38_0' \
-    'fastqc=0.11.9=hdfd78af_1' \
-    'multiqc=1.11=pyhdfd78af_0' \
-    'bbmap=38.91=he522d1c_1' \
-    'seqtk=1.3=h5bf99c6_3' \
-    'motus=2.6'
-
+  /opt/software/miniconda3/bin/conda install -y -c conda-forge -c bioconda samtools bwa 'motus=2.6'
+  
   # read_counter installation
-  cd /opt/software
-  git clone https://github.com/AlessioMilanese/read_counter.git
+  # cd /opt/software
+  # git clone https://github.com/AlessioMilanese/read_counter.git
 
   # mOTUs installation
   # bwa and samtools via conda 
@@ -88,36 +78,36 @@ export PATH=$PATH:/opt/software/miniconda3/bin:/opt/software/mOTUs:/opt/software
   # wget https://github.com/torognes/vsearch/archive/v2.18.0.tar.gz  # source
   # wget https://github.com/torognes/vsearch/releases/download/v2.15.0/vsearch-2.15.0-linux-x86_64.tar.gz  # mtags tested with 2.15.0
   # wget https://github.com/torognes/vsearch/releases/download/v2.18.0/vsearch-2.18.0-linux-x86_64.tar.gz
-  wget https://github.com/torognes/vsearch/releases/download/v2.18.0/vsearch-2.18.0-linux-x86_64-static.tar.gz
-  tar xvzf vsearch-2.18.0-linux-x86_64-static.tar.gz
-  mv vsearch-2.18.0-linux-x86_64-static vsearch
+  # wget https://github.com/torognes/vsearch/releases/download/v2.18.0/vsearch-2.18.0-linux-x86_64-static.tar.gz
+  # tar xvzf vsearch-2.18.0-linux-x86_64-static.tar.gz
+  # mv vsearch-2.18.0-linux-x86_64-static vsearch
 
-  ln -s /opt/software/vsearch/bin/vsearch /usr/bin/
+  # ln -s /opt/software/vsearch/bin/vsearch /usr/bin/
   
 
-  git clone https://github.com/cschu/mTAGs.git
-  cd mTAGs
-  git checkout 15fe1779726722854f87a952da7c78a661235fcd
+  # git clone https://github.com/cschu/mTAGs.git
+  # cd mTAGs
+  # git checkout 15fe1779726722854f87a952da7c78a661235fcd
   # git checkout feature/reactivate_readname_mapping_20220720
-  python3 setup.py bdist_wheel
-  pip3 install dist/*
+  # python3 setup.py bdist_wheel
+  # pip3 install dist/*
 
-  mtags download # <- this is stupid
+  # mtags download # <- this is stupid
 
 
   # MAPseq installation
-  cd /opt/software
-  wget -q https://github.com/jfmrod/MAPseq/releases/download/v1.2.6/mapseq-1.2.6-linux.tar.gz
-  tar xzf mapseq-1.2.6-linux.tar.gz
-  rm mapseq-1.2.6-linux.tar.gz
-  mv mapseq-1.2.6-linux mapseq
+  # cd /opt/software
+  # wget -q https://github.com/jfmrod/MAPseq/releases/download/v1.2.6/mapseq-1.2.6-linux.tar.gz
+  # tar xzf mapseq-1.2.6-linux.tar.gz
+  # rm mapseq-1.2.6-linux.tar.gz
+  # mv mapseq-1.2.6-linux mapseq
   #  wget -q https://github.com/jfmrod/MAPseq/releases/download/2.0.1alpha/mapseq-2.0.1alpha-linux.tar.gz
   # tar xzf mapseq-2.0.1alpha-linux.tar.gz
   # rm mapseq-2.0.1alpha-linux.tar.gz
   # mv mapseq-2.0.1alpha-linux mapseq
 
-  ln -s /opt/software/mapseq/mapseq /usr/bin/
-  ln -s /opt/software/mapseq/share /usr/bin/
+  # ln -s /opt/software/mapseq/mapseq /usr/bin/
+  # ln -s /opt/software/mapseq/share /usr/bin/
 
   #  apt-get install -y build-essential wget subversion git libncurses5-dev libtool autotools-dev autoconf dh-autoreconf
   #  git clone https://github.com/jfmrod/MAPseq.git
