@@ -55,6 +55,7 @@ process collate_results {
 		--lib_layout_res_path liblayout/ \
 		--N_raw_counts_path raw_counts/ \
 		--read_counter_res_path read_counter/ \
-		--out_folder collated/
+		--out_folder collated/ \
+		--vanilla
 	"""
 }
