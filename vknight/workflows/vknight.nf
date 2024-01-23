@@ -8,6 +8,7 @@ include { motus } from  "../modules/profilers/motus"
 include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules/profilers/mapseq"
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
+include { idtaxa } from "../modules/profilers/idtaxa"
 
 include { fq2fa } from "../../nevermore/modules/converters/fq2fa"
 include { fastqc } from "../../nevermore/modules/qc/fastqc"
@@ -48,6 +49,7 @@ def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && par
 def run_motus = (!params.skip_motus || params.run_motus);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
+def run_idtaxa = (!params.skip_idtaxa || params.run_idtaxa)
 
 def asset_dir = "${projectDir}/nevermore/assets"
 
@@ -158,12 +160,16 @@ workflow amplicon_analysis {
 			mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect() 
 			out_ch = out_ch.concat(mapseq_with_customdb.out.bac_ssu)
 
-		} else {
+		} else if (run_mapseq) {
 
 			mapseq(fq2fa.out.reads)
 			mapseq_ch = mapseq.out.bac_ssu.collect()
 			out_ch = out_ch.concat(mapseq.out.bac_ssu)
 
+		} 
+		
+		if (run_idtaxa) {
+			idtaxa(fq2fq.out.reads, params.idtaxa_classifier_db)
 		}
 
 		collate_mapseq_tables(mapseq_ch)
