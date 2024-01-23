@@ -169,7 +169,7 @@ workflow amplicon_analysis {
 		} 
 		
 		if (run_idtaxa) {
-			idtaxa(fq2fq.out.reads, params.idtaxa_classifier_db)
+			idtaxa(fq2fa.out.reads, params.idtaxa_classifier_db)
 		}
 
 		collate_mapseq_tables(mapseq_ch)
