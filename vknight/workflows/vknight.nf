@@ -168,12 +168,16 @@ workflow amplicon_analysis {
 
 		} 
 		
+		out_ch = Channel.empty()
 		if (run_idtaxa) {
 			idtaxa(fq2fa.out.reads, params.idtaxa_classifier_db)
+			// out_ch = out_ch.concat(idtaxa.out.count_table)
 		}
 
-		collate_mapseq_tables(mapseq_ch)
-		out_ch = out_ch.concat(collate_mapseq_tables.out.ssu_tables)
+		if (run_mapseq) {
+			collate_mapseq_tables(mapseq_ch)
+			out_ch = out_ch.concat(collate_mapseq_tables.out.ssu_tables)
+		} 
 
 
 	emit:
