@@ -154,7 +154,7 @@ workflow amplicon_analysis {
 
 		mapseq_ch = Channel.empty()
 
-		if (params.mapseq_db) {
+		if (run_mapseq && params.mapseq_db) {
 
 			mapseq_with_customdb(fq2fa.out.reads, params.mapseq_db)
 			mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect() 
