@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 
 idtaxa_func <- function(fasta,training_object_path , threshold , strands) {
   
@@ -44,7 +43,10 @@ idtaxa_func <- function(fasta,training_object_path , threshold , strands) {
   
   colnames(taxid) <- ranks
   
-  taxid_table<-as.data.frame(taxid) 
+  taxid_table<-as.data.frame(taxid) %>% dplyr::filter(kingdom !='Viruses') %>% 
+    unite(col='Idtaxa.tax',sep=';') %>% 
+    mutate(Idtaxa.tax=gsub("\\;NA*","",Idtaxa.tax)) %>% 
+    rownames_to_column('#query')
   
   return(taxid_table)
   
