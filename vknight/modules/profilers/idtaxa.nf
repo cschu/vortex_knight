@@ -21,7 +21,7 @@ process idtaxa {
 	${r1_cmd}
 	${r2_cmd}
 
-	mv -v *.count.table.csv idtaxa/${sample.id}/
+	mv -v *_IDTaxa.tsv idtaxa/${sample.id}/
 	"""
 
 }
