@@ -3,6 +3,7 @@ idtaxa_func <- function(fasta,training_object_path , threshold , strands) {
   
   require(tidyverse)
   require(DECIPHER)
+  require(dplyr)
   
  
 
@@ -43,7 +44,7 @@ idtaxa_func <- function(fasta,training_object_path , threshold , strands) {
   
   colnames(taxid) <- ranks
   
-  taxid_table<-as.data.frame(taxid) %>% dplyr::filter(kingdom !='Viruses') %>% 
+  taxid_table<-as.data.frame(taxid) %>% dplyr::filter(domain !='Viruses') %>% 
     unite(col='Idtaxa.tax',sep=';') %>% 
     mutate(Idtaxa.tax=gsub("\\;NA*","",Idtaxa.tax)) %>% 
     rownames_to_column('#query')
