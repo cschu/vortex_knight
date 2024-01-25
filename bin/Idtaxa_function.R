@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 
 idtaxa_func <- function(fasta,training_object_path , threshold , strands) {
   
