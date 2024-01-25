@@ -62,7 +62,7 @@ strand <- args[4]
 
 count_table <- idtaxa_func(fasta, training_object_path,threshold, strand)
 
-write.table(count_table,paste0(str_remove(fasta,'.fasta'),'_IDTaxa.tsv'),quote = FALSE, row.names = TRUE,sep = '\t')
+write.table(count_table,paste0(str_remove(fasta,'.fasta'),'_IDTaxa.csv'),quote = FALSE, row.names = TRUE,sep = '\t')
 
 
 
