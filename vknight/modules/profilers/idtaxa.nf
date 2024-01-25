@@ -8,7 +8,7 @@ process idtaxa {
 	path(idtaxa_classifier_db)
 
 	output:
-	tuple val(sample), path("idtaxa/${sample.id}/*csv"), emit: count_table
+	tuple val(sample), path("idtaxa/${sample.id}/*tsv"), emit: _IDTaxa
 
 	script:
 
