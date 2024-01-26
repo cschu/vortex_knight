@@ -331,6 +331,191 @@ library(progress)
   return(count_mat)
 }
 
+.f_read_in_IDtaxa <- function(path_to_folder,output_style="standard") {
+  # Collate all IDtaxa files into one count matrix with full taxonomy as rownmes.
+  # Follow the same strategy for building consensus taxonomy from rev and fwd read as with MAPseq: 
+  # For every read pair, check: 
+  # If taxonomy is identical (same resolution, same assignment) -> Take as is
+  # If taxonomy diverges at some point (e.g. different species assignment) -> Take last common ancestor
+  # If taxonomy is identical but different resolution (e.g. fwd until species, rev only genus) -> take higher resolution
+
+
+  file_list <- list.files(path_to_folder, pattern = "*IDTaxa.tsv")
+  if (length(file_list) < 1) {
+    message("No IDTaxa.tsv files in given directory")
+    stop
+  }
+  sample.names <- unique(str_remove(file_list,pattern = "_R[12]_IDTaxa.tsv"))
+  
+  #* Import fwd and rev file and combine them ----
+  # Due to laziness this is copied from the MAPseq import function - sorry for the bad coding practice in the old code.
+  message(paste0("Importing ",length(sample.names)," samples"))
+  count_df <- tibble(tax = character(0))
+  pb <- progress_bar$new(total=length(sample.names))
+  i <- 1
+  for(i in seq(1,length(sample.names))){
+    #message(i)
+    c.sample <- sample.names[i]
+    
+    #load forward and reverse reads
+    c.fwd <- tryCatch(
+      {data.table::fread(file = paste0(path_to_folder,c.sample,"_R1_IDTaxa.tsv"),skip = 0,header = T)},
+      error=function(e){
+        c.fwd <- data.frame(matrix(ncol = 2,nrow = 0))
+      }
+    )
+    c.rev <- tryCatch(
+      {data.table::fread(file = paste0(path_to_folder,c.sample,"_R2_IDTaxa.tsv"),skip = 0,header = T)},
+      error=function(e){
+        c.rev <- data.frame(matrix(ncol = 2,nrow = 0))
+      }
+    )
+    colnames(c.fwd) <- as.character(seq(1,ncol(c.fwd)))
+    colnames(c.rev) <- as.character(seq(1,ncol(c.rev)))
+    
+    #check if both, forward and reverse reads are present. If not, treat sample as unpaired
+    if(nrow(c.fwd)==0 & nrow(c.rev)==0){#skip if both read files are empty
+      next
+      pb$tick()
+    } 
+    if(nrow(c.fwd)>0 & nrow(c.rev)>0){
+      sample.type <- "paired"
+    }else{
+      sample.type <- "single"
+    }
+    
+    #Compare taxonomic assignments of forward and reverse reads
+    c.combined <- rbind(c.fwd[,c(2,3)] %>% add_column(read = "fwd"),
+                        c.rev[,c(2,3)] %>% add_column(read = "rev"))
+    colnames(c.combined) <- c("read_id","tax","read")
+
+    #* Part II: split the taxonomy, add the taxon-prefixes and re-merge it ----
+    tax.split <- data.table::tstrsplit(x = c.combined$tax,";")
+    #make list with 7 entries to match taxonomic tree
+    if(length(tax.split)<7){
+      N <- 7-length(tax.split)
+      NA_list <- vector("list", N)
+      # Populate the list with vectors of NAs (must be NA characters since otherwise they would be converted to logicals by data.table)
+      for (z in 1:N) {
+        NA_list[[z]] <- rep(as.character(NA), nrow(c.combined))
+      }
+      tax.split <- c(tax.split,NA_list)
+    }
+    c.combined[,c('kingdom', 'phylum', 'class','order', 'family', 'genus', 'species')] <- tax.split
+    
+    # If sample is paired-end do assign the taxonomie based on the agreement between read pairs
+    if(sample.type == "paired"){
+      fwd_mat <- c.combined %>% filter(read == "fwd") %>% select(-read) %>% column_to_rownames("read_id")
+      rev_mat <- c.combined %>% filter(read == "rev") %>% select(-read) %>% column_to_rownames("read_id")
+      
+      # Get intersection of read names and compare assigned taxonomies
+      readNames_intersect <- intersect(rownames(fwd_mat),rownames(rev_mat))
+      fwd_readsIntersect_mat <- fwd_mat[readNames_intersect,]
+      rev_readsIntersect_mat <- rev_mat[readNames_intersect,]
+      
+      # for the taxonomies that match: keep them as is
+      matching_reads_mat <- fwd_readsIntersect_mat[fwd_readsIntersect_mat$tax == rev_readsIntersect_mat$tax,
+                                                   colnames(fwd_readsIntersect_mat)!="tax"]
+      # If there are reads with an assigned taxonomy that are only found in either the fwd or rev: add them to the matching_mat (since this is the only information there is)
+      orphans_mat <- rbind(fwd_mat[!(rownames(fwd_mat)%in%readNames_intersect),],
+                           rev_mat[!(rownames(rev_mat)%in%readNames_intersect),])
+      matching_reads_mat <- rbind(matching_reads_mat,orphans_mat[,colnames(orphans_mat)!="tax"])
+      
+      #get some statistics about matching/non-matching
+      nMatching <- nrow(matching_reads_mat)
+      nNonMatching <- length(unique(c.combined$read_id))-nMatching
+      fracNonMatching <- round(nNonMatching / (nMatching+nNonMatching) * 100,0)
+      message("\n",nNonMatching," reads (",fracNonMatching,"%) have non-identical taxonomic annotation")
+      
+      # for the reads that don't have matching taxonomy annotations: process them accordingly
+      fwdNonMatching_mat <- fwd_readsIntersect_mat[fwd_readsIntersect_mat$tax != rev_readsIntersect_mat$tax,
+                                                   colnames(fwd_readsIntersect_mat)!="tax"]
+      revNonMatching_mat <- rev_readsIntersect_mat[fwd_readsIntersect_mat$tax != rev_readsIntersect_mat$tax,
+                                                   colnames(rev_readsIntersect_mat)!="tax"]
+      # If there are non matching taxonomies between fwd and rev reads: harmonize them
+      if(nrow(fwdNonMatching_mat)>0){
+        nonMatching_reads_fixed_mat <- .f_correctNonMatchingTaxAssignments_mapseq(mat1 = fwdNonMatching_mat,
+                                                                                  mat2 = revNonMatching_mat)
+      }else{nonMatching_reads_fixed_mat <- data.frame(matrix(NA,nrow = 0,ncol = ncol(matching_reads_mat),dimnames = list(NULL,colnames(matching_reads_mat))))}
+      
+      #combine the read matrices and proceed and unite the taxonomy in order to do an initial grouping before assigning the tax-prefixes (saves time)
+      combined_reads_df <- rbind(matching_reads_mat,
+                                 nonMatching_reads_fixed_mat) %>% 
+        rownames_to_column("read_id") %>% 
+        as_tibble() %>% 
+        unite(tmpTax,kingdom:species,remove = F,na.rm = T,sep = "|") %>% 
+        group_by(tmpTax) %>% 
+        mutate(count = n()) %>% 
+        ungroup() %>% 
+        select(-read_id) %>% 
+        distinct() %>% 
+        relocate(tmpTax,count)
+    }else{#if sample is single-end, simply take the provided taxonomic annotation of the read (do a grouping and summary based on the taxonomy in order to save computing time)
+      combined_reads_df <- 
+        c.combined %>% 
+        as_tibble() %>% 
+        group_by(tax) %>% 
+        mutate(count = n()) %>% 
+        ungroup() %>% 
+        select(-read_id,-read) %>% 
+        distinct() %>% 
+        rename(tmpTax = tax) %>% 
+        relocate(tmpTax,count)
+      
+    }
+    #* Part III: Add taxonomic prefixes and export ----
+    # Add taxonomic prefixes
+    taxLevel_short <- c("k__","p__","c__","o__","f__","g__","s__")
+    taxLevels <- c("kingdom","phylum","class","order","family","genus","species")
+    res_df <- tibble(tax=character(0),
+                     count=double(0))
+    #create df with only the tax levels and the added prefixes
+    tmp <- combined_reads_df %>% 
+      select(-tmpTax) %>% 
+      distinct() %>% 
+      as.data.frame()
+    for(j in seq(2,ncol(tmp))){
+      tmp[,j] <- paste0(taxLevel_short[j-1],tmp[,j])
+    }
+    taxReference_df <- 
+      tmp %>% 
+      mutate(across(.cols = -count,.fns = ~map(., str_replace_all,pattern = ".__NA",replacement = NA_character_))) %>% 
+      unnest(cols=c(kingdom, phylum, class, order, family, genus, species)) %>% 
+      as_tibble()
+    
+    #Convert to the desired output style matrix
+    if(output_style == "metaphlan"){
+      # Metaphlanize the mapseq output (give total sum of counts at every taxonomic combination)
+      res_df <- .f_metaphlanize_mapseq(taxReference_df = taxReference_df)
+      
+    }else if(output_style == "standard"){
+      res_df <- 
+        taxReference_df %>% 
+        unite("tax",kingdom:species,sep = "|",na.rm = T,remove = F) %>% 
+        select(tax,count)
+    }
+    
+    
+    ### merge with count_df
+    count_df <- 
+      count_df %>% 
+      full_join(.,res_df %>% rename(!!as.symbol(c.sample) := count),
+                by="tax")
+    
+    #remove c.combined (to prevent for whatever reason that a failed sample leads to duplication of the previous one)
+    rm(res_df,c.combined,taxReference_df,tmp)
+    pb$tick()
+  }
+  ### Create output matrix
+  count_mat <- count_df %>% 
+    as_tibble() %>% 
+    column_to_rownames("tax") %>% 
+    replace(is.na(.),0) %>% 
+    as.matrix()
+  
+  return(count_mat)
+}
+
 
 .f_read_in_files_kraken2_TableOutput <- function(path_to_folder,tax.level){
   ### Read in kraken2 result files and return matrix with counts per bacteria and sample

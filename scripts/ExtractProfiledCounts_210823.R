@@ -32,6 +32,8 @@ option_list = list(
               help="Path to folder with number of raw_counts", metavar="character"),
   make_option(c("--read_counter_res_path"), type="character", default=NULL, 
               help="Path to folder with read_counter results", metavar="character"),
+  make_option(c("--IDtaxa_res_path"), type="character", default=NULL, 
+              help="Path to folder with IDTaxa results", metavar="character"),
   
   
   make_option(c("--out_folder"), type="character", default=NULL, 
@@ -87,6 +89,17 @@ if(!(is.null(opt$mapseq_res_path))){
   saveRDS(res.mapseq,paste0(out.folder,"/res_mapseq.rds"))
   } else{
     message("mapseq path empty")
+  }
+}
+
+#IDTaxa
+message("IDTaxa")
+if(!(is.null(opt$IDtaxa_res_path))){
+  if(length(list.files(opt$IDtaxa_res_path))>0){
+  res.IDTaxa <- .f_read_in_IDtaxa(path_to_folder = opt$IDtaxa_res_path,output_style="standard")
+  saveRDS(res.IDTaxa,paste0(out.folder,"/res_IDTaxa.rds"))
+  } else{
+    message("IDtaxa path empty")
   }
 }
 
