@@ -8,7 +8,7 @@ process idtaxa {
 	path(idtaxa_classifier_db)
 
 	output:
-	path("idtaxa/${sample.id}/*tsv"), emit: count_table
+	path("${sample.id}/*tsv"), emit: count_table
 
 	script:
 
@@ -16,12 +16,10 @@ process idtaxa {
 	def r2_cmd = (sample.is_paired) ? "Idtaxa_function.R ${fasta[1]} ${idtaxa_classifier_db} ${params.idtaxa_error_rate_threshold} ${params.idtaxa_strand}" : ""
 
 	"""
-	mkdir -p idtaxa/${sample.id}/
-
+	
 	${r1_cmd}
 	${r2_cmd}
 
-	mv -v *_IDTaxa.tsv idtaxa/${sample.id}/
 	"""
 
 }
