@@ -39,6 +39,9 @@ process collate_results {
 
 	mkdir -p read_counter/
 	(mv *read_counter.txt read_counter/) || :
+	
+	mkdir -p idtaxa/
+	(mv *IDTaxa.tsv idtaxa/) || :
 
 	mkdir -p raw_counts/
 	(mv *.txt raw_counts/) || :
@@ -57,6 +60,7 @@ process collate_results {
 		--lib_layout_res_path liblayout/ \
 		--N_raw_counts_path raw_counts/ \
 		--read_counter_res_path read_counter/ \
+		--IDtaxa_res_path idtaxa/ \
 		--out_folder collated/ 
 	"""
 }
