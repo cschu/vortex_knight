@@ -16,9 +16,12 @@ process idtaxa {
 	def r2_cmd = (sample.is_paired) ? "Idtaxa_function.R ${fasta[1]} ${idtaxa_classifier_db} ${params.idtaxa_error_rate_threshold} ${params.idtaxa_strand}" : ""
 
 	"""
+	mkdir -p ${sample.id}/
 	
 	${r1_cmd}
 	${r2_cmd}
+
+	mv -v *IDTaxa.tsv ${sample.id}/
 
 	"""
 
