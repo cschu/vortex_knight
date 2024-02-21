@@ -361,13 +361,13 @@ library(progress)
     c.fwd <- tryCatch(
       {data.table::fread(file = paste0(path_to_folder,c.sample,"_R1_IDTaxa.tsv"),skip = 0,header = T)},
       error=function(e){
-        c.fwd <- data.frame(matrix(ncol = 2,nrow = 0))
+        c.fwd <- data.frame(matrix(ncol = 3,nrow = 0)) #IDTaxa raw output has 3 columns
       }
     )
     c.rev <- tryCatch(
       {data.table::fread(file = paste0(path_to_folder,c.sample,"_R2_IDTaxa.tsv"),skip = 0,header = T)},
       error=function(e){
-        c.rev <- data.frame(matrix(ncol = 2,nrow = 0))
+        c.rev <- data.frame(matrix(ncol = 3,nrow = 0))
       }
     )
     colnames(c.fwd) <- as.character(seq(1,ncol(c.fwd)))
@@ -383,7 +383,7 @@ library(progress)
     }else{
       sample.type <- "single"
     }
-    
+    c.fwd %>% as_tibble()
     #Compare taxonomic assignments of forward and reverse reads
     c.combined <- rbind(c.fwd[,c(2,3)] %>% add_column(read = "fwd"),
                         c.rev[,c(2,3)] %>% add_column(read = "rev"))
