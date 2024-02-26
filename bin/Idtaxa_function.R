@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-idtaxa_func <- function(fasta,training_object_path , threshold , strands) {
+idtaxa_func <- function(fasta,training_object_path , threshold , strands,processors) {
   
   require(tidyverse)
   require(DECIPHER)
@@ -31,7 +31,7 @@ idtaxa_func <- function(fasta,training_object_path , threshold , strands) {
                 trainingSet,
                 strand=strands, # The default of "both" will classify using both orientations(reverse and forward on training seq) and choose the result with highest confidence.
                 threshold= as.numeric(threshold), # 60 (cautious) or 50 (sensible)
-                processors= NULL) # use all available processors with NULL
+                processors= processors) 
   
   ranks <- c("domain", "phylum", "class", "order", "family", "genus", "species") # ranks of interest
   
@@ -59,8 +59,9 @@ fasta <- args[1]
 training_object_path <- args[2]
 threshold <- args[3]
 strand <- args[4]
+processors<- args[5]
 
-count_table <- idtaxa_func(fasta, training_object_path,threshold, strand)
+count_table <- idtaxa_func(fasta, training_object_path,threshold, strand,processors)
 
 write.table(count_table,paste0(str_remove(fasta,'.fasta'),'_IDTaxa.tsv'),quote = FALSE, row.names = TRUE,sep = '\t')
 
