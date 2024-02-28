@@ -70,4 +70,3 @@ write.table(count_table,paste0(str_remove(fasta,'.fasta'),'_IDTaxa.tsv'),quote =
 
 
 
-
