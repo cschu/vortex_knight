@@ -31,7 +31,7 @@ idtaxa_func <- function(fasta,training_object_path , threshold , strands,process
                 trainingSet,
                 strand=strands, # The default of "both" will classify using both orientations(reverse and forward on training seq) and choose the result with highest confidence.
                 threshold= as.numeric(threshold), # 60 (cautious) or 50 (sensible)
-                processors= processors) 
+                processors= as.numeric(processors)) 
   
   ranks <- c("domain", "phylum", "class", "order", "family", "genus", "species") # ranks of interest
   
