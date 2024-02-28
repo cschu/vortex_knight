@@ -12,8 +12,8 @@ process idtaxa {
 
 	script:
 
-	def r1_cmd = "Idtaxa_function.R ${fasta[0]} ${idtaxa_classifier_db} ${params.idtaxa_error_rate_threshold} ${params.idtaxa_strand}"
-	def r2_cmd = (sample.is_paired) ? "Idtaxa_function.R ${fasta[1]} ${idtaxa_classifier_db} ${params.idtaxa_error_rate_threshold} ${params.idtaxa_strand}" : ""
+	def r1_cmd = "Idtaxa_function.R ${fasta[0]} ${idtaxa_classifier_db} ${params.idtaxa_error_rate_threshold} ${params.idtaxa_strand} ${task.cpus}"
+	def r2_cmd = (sample.is_paired) ? "Idtaxa_function.R ${fasta[1]} ${idtaxa_classifier_db} ${params.idtaxa_error_rate_threshold} ${params.idtaxa_strand} ${task.cpus}" : ""
 
 	"""
 	mkdir -p ${sample.id}/
