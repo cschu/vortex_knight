@@ -1,3 +1,7 @@
+params.pathseq_skip_host_alignment = false
+params.pathseq_skip_quality_filters = false
+
+
 process pathseq {
     publishDir params.output_dir, mode: params.publish_mode
 
@@ -32,6 +36,8 @@ process pathseq {
 		--taxonomy-file ${params.pathseq_db_taxonomy_file} \\
 		--output ${sample.id}/${sample.id}.pathseq.bam \\
 		--scores-output ${sample.id}/${sample.id}.pathseq.scores \\
-		--score-metrics ${sample.id}/${sample.id}.pathseq.score_metrics
+		--score-metrics ${sample.id}/${sample.id}.pathseq.score_metrics \\
+		--is-host-aligned ${params.pathseq_skip_host_alignment} \\
+		--skip-quality-filters ${params.pathseq_skip_quality_filters}
     """
 }
