@@ -191,68 +191,68 @@ workflow vknight_main {
 	main:
 		results_ch = Channel.empty()
 
-		if (do_preprocessing) {
+		// if (do_preprocessing) {
 
-			nevermore_simple_preprocessing(fastq_ch)
+		// 	nevermore_simple_preprocessing(fastq_ch)
 
-			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
-			results_ch = results_ch
-				.concat(nevermore_simple_preprocessing.out.raw_counts)
-				.map { sample, files -> files }
+		// 	preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+		// 	results_ch = results_ch
+		// 		.concat(nevermore_simple_preprocessing.out.raw_counts)
+		// 		.map { sample, files -> files }
 
-			if (params.remove_host) {
+		// 	if (params.remove_host) {
 
-				if (params.remove_host == "individual") {
+		// 		if (params.remove_host == "individual") {
 
-					remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+		// 			remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
 
-					preprocessed_ch = remove_host_kraken2_individual.out.reads
+		// 			preprocessed_ch = remove_host_kraken2_individual.out.reads
 
 
-				} else if (params.remove_host == "pair") {
+		// 		} else if (params.remove_host == "pair") {
 
-					remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
+		// 			remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
 
-					preprocessed_ch = remove_host_kraken2.out.reads
+		// 			preprocessed_ch = remove_host_kraken2.out.reads
 
-				}
+		// 		}
 
-			}
+		// 	}
 			
 
-		} else {
+		// } else {
 
-			preprocessed_ch = fastq_ch //.out.fastqs
-				// .concat(bfastq_ch)
+		// 	preprocessed_ch = fastq_ch //.out.fastqs
+		// 		// .concat(bfastq_ch)
 
-		}
+		// }
 
-		//
-		/*	perform post-qc fastqc analysis and generate multiqc report on merged single-read and paired-end sets */
+		// //
+		// /*	perform post-qc fastqc analysis and generate multiqc report on merged single-read and paired-end sets */
 
-		fastqc(preprocessed_ch, "qc")
+		// fastqc(preprocessed_ch, "qc")
 
-		multiqc(
-			fastqc.out.stats
-				.map { sample, report -> return report }.collect(),
-			"${asset_dir}/multiqc.config",
-			"qc"
-		)
+		// multiqc(
+		// 	fastqc.out.stats
+		// 		.map { sample, report -> return report }.collect(),
+		// 	"${asset_dir}/multiqc.config",
+		// 	"qc"
+		// )
 
-		if (do_preprocessing) {
+		// if (do_preprocessing) {
 
-			collate_ch = nevermore_simple_preprocessing.out.raw_counts
-				.map { sample, file -> return file }
-				.collect()
-				.concat(
-					fastqc.out.counts
-						.map { sample, file -> return file }
-						.collect()
-				)
+		// 	collate_ch = nevermore_simple_preprocessing.out.raw_counts
+		// 		.map { sample, file -> return file }
+		// 		.collect()
+		// 		.concat(
+		// 			fastqc.out.counts
+		// 				.map { sample, file -> return file }
+		// 				.collect()
+		// 		)
 			
-			collate_stats(collate_ch.collect())
+		// 	collate_stats(collate_ch.collect())
 
-		}
+		// }
 		//
 
 		if (get_basecounts || run_bam_analysis) {
@@ -295,11 +295,13 @@ workflow vknight_main {
 		}
 
 		if (!params.skip_collate) {
+
 			collate_results(
 				results_ch.collect(),
 				"${projectDir}/scripts/ExtractProfiledCounts_210823.R",
 				params.GTDB_markers
 			)
+
 		}
 
 	emit:
