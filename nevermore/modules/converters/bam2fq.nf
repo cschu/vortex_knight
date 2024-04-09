@@ -1,6 +1,5 @@
 process bam2fq {
-    // publishDir params.output_dir, mode: params.publish_mode
-
+    container "docker://quay.io/biocontainers/samtools:1.19.2--h50ea8bc_1"
     input:
     tuple val(sample), path(bam)
 
