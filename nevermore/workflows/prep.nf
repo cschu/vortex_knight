@@ -15,6 +15,8 @@ def keep_orphans = (params.keep_orphans || false)
 
 def asset_dir = "${projectDir}/nevermore/assets"
 
+params.subsample = [:]
+
 print asset_dir
 
 process concat_singles {
