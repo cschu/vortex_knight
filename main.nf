@@ -3,6 +3,7 @@
 nextflow.enable.dsl=2
 
 include { fastq_input; bam_input } from "./nevermore/workflows/input"
+include { nevermore_main } from "./nevermore/workflows/nevermore"
 include { vknight_main } from "./vknight/workflows/vknight"
 
 
@@ -34,10 +35,11 @@ workflow {
 		bam_input(
 			Channel.fromPath(bam_input_pattern)
 		)
-		fastq_ch = bam_input.out.bamfiles
+		fastq_ch = bam_input.out.fastqs
 	} else {
 		fastq_input(
-			Channel.fromPath(input_dir + "/*", type: "dir")
+			Channel.fromPath(input_dir + "/*", type: "dir"),
+			Channel.of(null)
 		)
 		fastq_ch = fastq_input.out.fastqs
 	}
@@ -45,6 +47,7 @@ workflow {
 	// fastq_ch = fastq_input.out.fastqs.concat(bam_input.out.bamfiles)
 	fastq_ch.view()
 
-	vknight_main(fastq_ch)
+	nevermore_main(fastq_ch)
 
+	vknight_main(nevermore_main.out.fastqs)
 }

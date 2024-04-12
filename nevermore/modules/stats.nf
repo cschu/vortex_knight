@@ -1,5 +1,5 @@
 process flagstats {
-    // publishDir params.output_dir, mode: params.publish_mode
+    container "docker://registry.git.embl.de/schudoma/align-docker:latest"
 
     input:
     tuple val(sample), path(bam)

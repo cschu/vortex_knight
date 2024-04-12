@@ -1,4 +1,5 @@
 process merge_and_sort {
+    container "docker://quay.io/biocontainers/samtools:1.19.2--h50ea8bc_1"
     label 'samtools'
 
     input:
@@ -29,6 +30,7 @@ process merge_and_sort {
 
 
 process db_filter {
+    container "docker://quay.io/biocontainers/samtools:1.19.2--h50ea8bc_1"
     label 'samtools'
 
     input:
@@ -46,6 +48,26 @@ process db_filter {
     samtools flagstats filtered_bam/${sample}.bam > stats/filtered_bam/${sample}.flagstats.txt
     """
 }
+
+
+process readcount {
+    container "docker://quay.io/biocontainers/samtools:1.19.2--h50ea8bc_1"
+    label 'samtools'
+
+    input:
+    tuple val(sample), path(bam)
+
+    output:
+    tuple val(sample), path("${sample}.readcounts.txt"), emit: readcounts
+
+    script:
+    """
+    set -e -o pipefail
+    mkdir -p tmp/
+    samtools view ${sample}.bam | cut -f 1 | uniq | sort -u -T tmp/ | wc -l > ${sample}.readcounts.txt
+    """
+}
+
 
 process db2bed3 {
     input:
