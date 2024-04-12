@@ -38,7 +38,8 @@ workflow {
 		fastq_ch = bam_input.out.fastqs
 	} else {
 		fastq_input(
-			Channel.fromPath(input_dir + "/*", type: "dir")
+			Channel.fromPath(input_dir + "/*", type: "dir"),
+			Channel.of(null)
 		)
 		fastq_ch = fastq_input.out.fastqs
 	}
