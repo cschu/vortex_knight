@@ -257,7 +257,7 @@ workflow vknight_main {
 
 		if (get_basecounts || run_bam_analysis) {
 
-			fq2bam(preprocessed_ch)
+			fq2bam(fastq_ch)
 
 			if (get_basecounts) {
 
@@ -282,14 +282,14 @@ workflow vknight_main {
 
 		if (run_fastq_analysis) {
 
-			fastq_analysis(preprocessed_ch)
+			fastq_analysis(fastq_ch)
 			results_ch = results_ch.concat(fastq_analysis.out.results)
 
 		}
 
 		if (run_amplicon_analysis) {
 
-			amplicon_analysis(preprocessed_ch)
+			amplicon_analysis(fastq_ch)
 			results_ch = results_ch.concat(amplicon_analysis.out.results)
 
 		}
