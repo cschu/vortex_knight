@@ -44,7 +44,7 @@ process qc_bbduk {
             orphan_filter += "bbduk.sh -Xmx${maxmem}g t=${task.cpus} ${trim_params} in=tmp_orphans.fq out=${orphans}"
             orphan_check = """
             if [[ -z "\$(gzip -dc ${orphans} | head -n 1)" ]]; then
-                rm ${orphans}
+                rm -vf ${orphans}
             fi
             """
         }
