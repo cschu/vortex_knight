@@ -193,6 +193,7 @@ workflow vknight_main {
 
 		if (do_preprocessing) {
 
+			fastq_ch.dump(pretty: true, tag: "fastq_ch_check")
 			nevermore_simple_preprocessing(fastq_ch)
 
 			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
