@@ -330,7 +330,7 @@ library(progress)
   
   return(count_mat)
 }
-
+i
 .f_read_in_IDtaxa <- function(path_to_folder,output_style="standard") {
   # Collate all IDtaxa files into one count matrix with full taxonomy as rownmes.
   # Follow the same strategy for building consensus taxonomy from rev and fwd read as with MAPseq: 
@@ -352,20 +352,20 @@ library(progress)
   message(paste0("Importing ",length(sample.names)," samples"))
   count_df <- tibble(tax = character(0))
   pb <- progress_bar$new(total=length(sample.names))
-  i <- 1
+  i <- 30
   for(i in seq(1,length(sample.names))){
     #message(i)
     c.sample <- sample.names[i]
     
     #load forward and reverse reads
     c.fwd <- tryCatch(
-      {data.table::fread(file = paste0(path_to_folder,c.sample,"_R1_IDTaxa.tsv"),skip = 0,header = T)},
+      {data.table::fread(file = paste0(path_to_folder,c.sample,"_R1_IDTaxa.tsv"),sep="\t",skip = 0,header = F)},
       error=function(e){
         c.fwd <- data.frame(matrix(ncol = 3,nrow = 0)) #IDTaxa raw output has 3 columns
       }
     )
     c.rev <- tryCatch(
-      {data.table::fread(file = paste0(path_to_folder,c.sample,"_R2_IDTaxa.tsv"),skip = 0,header = T)},
+      {data.table::fread(file = paste0(path_to_folder,c.sample,"_R2_IDTaxa.tsv"),sep="\t",skip = 0,header = F)},
       error=function(e){
         c.rev <- data.frame(matrix(ncol = 3,nrow = 0))
       }
