@@ -330,7 +330,7 @@ library(progress)
   
   return(count_mat)
 }
-i
+
 .f_read_in_IDtaxa <- function(path_to_folder,output_style="standard") {
   # Collate all IDtaxa files into one count matrix with full taxonomy as rownmes.
   # Follow the same strategy for building consensus taxonomy from rev and fwd read as with MAPseq: 
