@@ -352,8 +352,8 @@ library(progress)
   message(paste0("Importing ",length(sample.names)," samples"))
   count_df <- tibble(tax = character(0))
   pb <- progress_bar$new(total=length(sample.names))
-  i <- 30
-  for(i in seq(1,length(sample.names))){
+  i <- 1
+  for(i in seq(1,length(sample.names))){  
     #message(i)
     c.sample <- sample.names[i]
     
@@ -369,10 +369,18 @@ library(progress)
       error=function(e){
         c.rev <- data.frame(matrix(ncol = 3,nrow = 0))
       }
-    )
+    )    
+    #check if the first row contains "query" which indicates that the IDtaxa file was completely empty
+    if(nrow(c.fwd) > 0 & str_detect(c.fwd[1,1],"query")){
+      c.fwd <- data.frame(matrix(ncol = 3,nrow = 0))
+    }
+    if(nrow(c.rev) > 0 & str_detect(c.rev[1,1],"query")){
+      c.rev <- data.frame(matrix(ncol = 3,nrow = 0))
+    }
+        
     colnames(c.fwd) <- as.character(seq(1,ncol(c.fwd)))
     colnames(c.rev) <- as.character(seq(1,ncol(c.rev)))
-    
+
     #check if both, forward and reverse reads are present. If not, treat sample as unpaired
     if(nrow(c.fwd)==0 & nrow(c.rev)==0){#skip if both read files are empty
       next
@@ -383,7 +391,7 @@ library(progress)
     }else{
       sample.type <- "single"
     }
-    c.fwd %>% as_tibble()
+    #c.fwd %>% as_tibble()
     #Compare taxonomic assignments of forward and reverse reads
     c.combined <- rbind(c.fwd[,c(2,3)] %>% add_column(read = "fwd"),
                         c.rev[,c(2,3)] %>% add_column(read = "rev"))
