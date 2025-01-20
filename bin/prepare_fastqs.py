@@ -297,6 +297,10 @@ def main():
 			sample = re.sub(fastq_mate_pattern, "", sample)
 			samples.setdefault(sample, []).append(f)
 
+	nfiles = sum(len(v) for v in samples.values())
+	if not samples or not nfiles:
+		raise ValueError("No read files found.")	
+
 	# check and transfer the files
 	for sample, fastqs in samples.items():
 		try:
