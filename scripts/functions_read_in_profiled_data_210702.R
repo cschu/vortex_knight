@@ -168,10 +168,10 @@ library(progress)
   count_df <- tibble(tax = character(0))
   pb <- progress_bar$new(total=length(sample.names))
   i <- 1
-  for(i in seq(1,length(sample.names))){
-    #message(i)
+  for(i in seq(1,length(sample.names))){  
+    #message(i)    
     c.sample <- sample.names[i]
-    
+    #message(c.sample)
     #load forward and reverse reads
     c.fwd <- tryCatch(
       {data.table::fread(file = paste0(path_to_folder,c.sample,fwd_file_ending),skip = 1,header = T)},
@@ -294,7 +294,7 @@ library(progress)
     }
     taxReference_df <- 
       tmp %>% 
-      mutate(across(.cols = -count,.fns = ~map(., str_replace_all,pattern = ".__NA",replacement = NA_character_))) %>% 
+      mutate(across(.cols = -count,.fns = ~map(., str_replace_all,pattern = ".__NA$",replacement = NA_character_))) %>% 
       unnest(cols=c(kingdom, phylum, class, order, family, genus, species)) %>% 
       as_tibble()
     
