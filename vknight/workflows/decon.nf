@@ -15,7 +15,7 @@ workflow vk_decon {
 
 			starmap(reads_ch, params.remove_host_star_db)
 
-			bam2fq(starmap.out.bam, 12)
+			bam2fq(starmap.out.bam, true)
 
 			reads_ch = bam2fq.out.reads
 
@@ -23,7 +23,7 @@ workflow vk_decon {
 
 			bwa_mem_align(reads_ch, params.remove_host_bwa_index, false)
 
-			bam2fq(bwa_mem_align.out.bam)
+			bam2fq(bwa_mem_align.out.bam, true)
 
 			reads_ch = bam2fq.out.reads
 
