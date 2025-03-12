@@ -4,7 +4,7 @@ process starmap {
 	time { 3.d * task.attempt }
 	// container "dceoy/star:latest"
 	container "quay.io/biocontainers/star:2.7.0b--0"
-	publishDir "${params.output_dir}/host_gene_counts", mode: "copy", pattern: "${sample}/*.tsv"
+	publishDir "${params.output_dir}/host_gene_counts", mode: "copy", pattern: "${sample.id}/*.tsv"
 
     input:
     tuple val(sample), path(reads)
@@ -12,19 +12,19 @@ process starmap {
 
     output:
     // tuple val(sample), path("${sample}/*.fastq.gz"), emit: reads
-	tuple val(sample), path("${sample}/${sample}.bam"), emit: bam
-	tuple val(sample), path("${sample}/*.tsv"), emit: gene_counts
+	tuple val(sample), path("${sample.id}/${sample.id}.bam"), emit: bam
+	tuple val(sample), path("${sample.id}/*.tsv"), emit: gene_counts
 
     script:
     """
 	set -e -o pipefail
 
-    mkdir -p ${sample}
+    mkdir -p ${sample.id}
 
-    STAR --runThreadN ${task.cpus} --genomeDir ${star_index} --readFilesIn ${reads} --readFilesCommand zcat --outFileNamePrefix ./${sample}. --outReadsUnmapped Fastx --outSAMtype BAM SortedByCoordinate --quantMode TranscriptomeSAM GeneCounts
+    STAR --runThreadN ${task.cpus} --genomeDir ${star_index} --readFilesIn ${reads} --readFilesCommand zcat --outFileNamePrefix ./${sample.id}. --outReadsUnmapped Fastx --outSAMtype BAM SortedByCoordinate --quantMode TranscriptomeSAM GeneCounts
 
-	mv -v ${sample}.Aligned.sortedByCoord.out.bam ${sample}/${sample}.bam
-	mv -v ${sample}.ReadsPerGene.out.tab ${sample}/${sample}.ReadsPerGene.tsv
+	mv -v ${sample.id}.Aligned.sortedByCoord.out.bam ${sample.id}/${sample.id}.bam
+	mv -v ${sample.id}.ReadsPerGene.out.tab ${sample.id}/${sample.id}.ReadsPerGene.tsv
     """
 
 }
