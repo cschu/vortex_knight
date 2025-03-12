@@ -1,6 +1,6 @@
 include { starmap } from "../modules/decon/starmap"
 include { bwa_mem_align } from "../../nevermore/modules/align/bwa"
-include { bam2fq } from "../../nevermore/modules/converters"
+include { bam2fq } from "../../nevermore/modules/converters/bam2fq"
 
 params.remove_host_star_db = "/scratch/fspringe/Databases/STAR_index/Ahmad_crc-eco"
 params.remove_host_bwa_index = "/g/scb/zeller/fspringe/ReferenceGenomes/T2T-CHM13v2.0/chm13v2.0.fa.idx"
