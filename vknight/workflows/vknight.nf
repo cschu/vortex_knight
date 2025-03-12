@@ -19,6 +19,9 @@ include { remove_host_kraken2; remove_host_kraken2_individual } from "../../neve
 include { flagstats } from "../../nevermore/modules/stats"
 include { collate_results } from "../modules/collate"
 include { collate_stats } from "../../nevermore/modules/collate"
+include { starmap } from "../modules/decon/starmap"
+
+include { vk_decon } from "./decon"
 
 
 if (!params.publish_mode) {
@@ -203,20 +206,8 @@ workflow vknight_main {
 
 			if (params.remove_host) {
 
-				if (params.remove_host == "individual") {
-
-					remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
-
-					preprocessed_ch = remove_host_kraken2_individual.out.reads
-
-
-				} else if (params.remove_host == "pair") {
-
-					remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
-
-					preprocessed_ch = remove_host_kraken2.out.reads
-
-				}
+				vk_decon(preprocessed_ch)
+				preprocessed_ch = vk_decon.out.reads				
 
 			}
 			

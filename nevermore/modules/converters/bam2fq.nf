@@ -3,15 +3,22 @@ process bam2fq {
 
     input:
     tuple val(sample), path(bam)
+    val(samflags)
 
     output:
     tuple val(sample), path("fastq/${sample.id}/${sample.id}*.fastq.gz"), emit: reads
 
     script:
+
+    def filter_flags = ""
+    if ("${samflags}" != null) {
+        filter_flags = "-f ${samflags}"
+    }
+
     """
     set -o pipefail
     mkdir -p fastq/${sample.id}
-    samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 -0 ${sample.id}_other.fastq.gz -1 ${sample.id}_R1.fastq.gz -2 ${sample.id}_R2.fastq.gz
+    samtools collate -@ $task.cpus -u -O $bam | samtools fastq -F 0x900 ${filter_flags} -0 ${sample.id}_other.fastq.gz -1 ${sample.id}_R1.fastq.gz -2 ${sample.id}_R2.fastq.gz
 
     if [[ "\$?" -eq 0 ]];
     then

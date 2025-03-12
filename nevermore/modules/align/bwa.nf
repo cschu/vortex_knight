@@ -1,4 +1,8 @@
 process bwa_mem_align {
+    cpus 4
+    memory { 20.GB * task.attempt }
+    time { 3.d * task.attempt }
+    container "registry.git.embl.de/schudoma/align-docker"
     label 'align'
 
     input:
