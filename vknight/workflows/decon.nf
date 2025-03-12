@@ -10,11 +10,10 @@ workflow vk_decon {
 	take:
 		reads_ch
 	main:
-		reads_ch = Channel.empty()
 
 		if (params.library_type == "rna") {
 
-			starmap(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_star_db)
+			starmap(reads_ch, params.remove_host_star_db)
 
 			bam2fq(starmap.out.bam, 12)
 
@@ -22,7 +21,7 @@ workflow vk_decon {
 
 		} else {
 
-			bwa_mem_align(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_bwa_index, false)
+			bwa_mem_align(reads_ch, params.remove_host_bwa_index, false)
 
 			bam2fq(bwa_mem_align.out.bam)
 
