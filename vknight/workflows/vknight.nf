@@ -253,7 +253,7 @@ workflow vknight_main {
 
 			if (get_basecounts) {
 
-				flagstats(fq2bam.out.reads)
+				flagstats(fq2bam.out.reads, "basecounts")
 
 				flagstat_results_ch = flagstats.out.flagstats
 					.concat(flagstats.out.counts)
