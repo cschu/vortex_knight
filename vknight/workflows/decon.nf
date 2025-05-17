@@ -30,7 +30,7 @@ workflow vk_decon {
 
 		}
 
-		flagstats(reads_ch)
+		flagstats(reads_ch, "decon")
 
 	emit:
 		reads = reads_ch
