@@ -11,6 +11,7 @@ workflow vk_decon {
 	take:
 		reads_ch
 	main:
+		flagstats_reads_ch = Channel.empty()
 
 		if (params.library_type == "rna") {
 
@@ -20,6 +21,8 @@ workflow vk_decon {
 
 			reads_ch = bam2fq.out.reads
 
+			flagstats_reads_ch = flagstats_reads_ch.mix(starmap.out.bam)
+
 		} else {
 
 			bwa_mem_align(reads_ch, params.remove_host_bwa_index, false)
@@ -28,9 +31,11 @@ workflow vk_decon {
 
 			reads_ch = bam2fq.out.reads
 
+			flagstats_reads_ch = flagstats_reads_ch.mix(bwa_mem_align.out.bam)
+
 		}
 
-		flagstats(reads_ch, "decon")
+		flagstats(flagstats_reads_ch, "decon")
 
 	emit:
 		reads = reads_ch
