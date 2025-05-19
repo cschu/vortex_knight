@@ -15,6 +15,6 @@ process flagstats {
     mkdir -p ${stage}/${sample.id}
     samtools flagstat $bam > "${stage}/${sample.id}/${sample.id}.flagstats.txt"
     head -n 1 "${stage}/${sample.id}/${sample.id}.flagstats.txt" | awk '{print \$1 + \$3}' > "${stage}/${sample.id}/${sample.id}.libsize.txt"
-    grep -m 1 "paired in sequencing" "${stage}/${sample.id}/${sample.id}.flagstats.txt" | awk '{npaired = \$1 + \$3; if (npaired==0) {print "unpaired"} else {print "paired"};}' > "${sample.id}/${sample.id}.is_paired.txt"
+    grep -m 1 "paired in sequencing" "${stage}/${sample.id}/${sample.id}.flagstats.txt" | awk '{npaired = \$1 + \$3; if (npaired==0) {print "unpaired"} else {print "paired"};}' > "${stage}/${sample.id}/${sample.id}.is_paired.txt"
     """
 }
