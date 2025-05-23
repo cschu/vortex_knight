@@ -3,7 +3,7 @@ process bam2fq {
 
     input:
     tuple val(sample), path(bam)
-    val(remove_unmapped)
+    val(keep_unmapped)
 
     output:
     tuple val(sample), path("fastq/${sample.id}/${sample.id}*.fastq.gz"), emit: reads
@@ -11,8 +11,8 @@ process bam2fq {
     script:
 
     def filter_flags = "-F 0x900"
-    if (remove_unmapped == true) {
-        filter_flags = "-F 0x90c"
+    if (keep_unmapped == true) {
+        filter_flags = "-F 0x900 -f 0xc"
     }
 
     """
