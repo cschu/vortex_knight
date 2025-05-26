@@ -2,6 +2,7 @@ include { starmap } from "../modules/decon/starmap"
 include { bwa_mem_align } from "../../nevermore/modules/align/bwa"
 include { bam2fq } from "../../nevermore/modules/converters/bam2fq"
 include { flagstats } from "../../nevermore/modules/stats"
+include { fastqc } from "../../nevermore/modules/qc/fastqc"
 
 params.remove_host_star_db = "/scratch/fspringe/Databases/STAR_index/Ahmad_crc-eco"
 params.remove_host_bwa_index = "/g/scb/zeller/fspringe/ReferenceGenomes/T2T-CHM13v2.0/chm13v2.0.fa.idx"
@@ -36,6 +37,7 @@ workflow vk_decon {
 		}
 
 		flagstats(flagstats_reads_ch, "decon")
+		fastqc(reads_ch, "decon_survivors")
 
 	emit:
 		reads = reads_ch
