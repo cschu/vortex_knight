@@ -12,6 +12,7 @@ process pathseq {
     output:
     tuple val(sample), path("${sample.id}/${sample.id}.pathseq.score*"), emit: scores
     tuple val(sample), path("${sample.id}/${sample.id}.pathseq.bam*"), emit: bam
+	tuple val(sample), path("${sample.id}/${sample.id}.pathseq.filter_metrics"), emit: filter_metrics
 
     script:
     def maxmem = task.memory.toGiga()
@@ -38,6 +39,7 @@ process pathseq {
 		--scores-output ${sample.id}/${sample.id}.pathseq.scores \\
 		--score-metrics ${sample.id}/${sample.id}.pathseq.score_metrics \\
 		--is-host-aligned ${params.pathseq_skip_host_alignment} \\
-		--skip-quality-filters ${params.pathseq_skip_quality_filters}
+		--skip-quality-filters ${params.pathseq_skip_quality_filters} \\
+		--filter-metrics ${sample.id}/${sample.id}.pathseq.filter_metrics
     """
 }
