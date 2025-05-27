@@ -193,50 +193,31 @@ workflow vknight_main {
 		fastq_ch
 	main:
 		results_ch = Channel.empty()
-
-		if (do_preprocessing) {
+		
+		if (params.run_qc) {
 
 			fastq_ch.dump(pretty: true, tag: "fastq_ch_check")
 			nevermore_simple_preprocessing(fastq_ch)
 
 			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
 			results_ch = results_ch
-				.concat(nevermore_simple_preprocessing.out.raw_counts)
+				.mix(nevermore_simple_preprocessing.out.raw_counts)
 				.map { sample, files -> files }
 
-			if (params.remove_host) {
 
-				vk_decon(preprocessed_ch)
-				preprocessed_ch = vk_decon.out.reads				
+			fastqc(preprocessed_ch, "qc")
 
-			}
-			
-
-		} else {
-
-			preprocessed_ch = fastq_ch //.out.fastqs
-				// .concat(bfastq_ch)
-
-		}
-
-		//
-		/*	perform post-qc fastqc analysis and generate multiqc report on merged single-read and paired-end sets */
-
-		fastqc(preprocessed_ch, "qc")
-
-		multiqc(
-			fastqc.out.stats
-				.map { sample, report -> return report }.collect(),
-			"${asset_dir}/multiqc.config",
-			"qc"
-		)
-
-		if (do_preprocessing) {
+			multiqc(
+				fastqc.out.stats
+					.map { sample, report -> return report }.collect(),
+				"${asset_dir}/multiqc.config",
+				"qc"
+			)
 
 			collate_ch = nevermore_simple_preprocessing.out.raw_counts
 				.map { sample, file -> return file }
 				.collect()
-				.concat(
+				.mix(
 					fastqc.out.counts
 						.map { sample, file -> return file }
 						.collect()
@@ -244,7 +225,70 @@ workflow vknight_main {
 			
 			collate_stats(collate_ch.collect())
 
+		} else {
+
+			preprocessed_ch = fastq_ch
+
 		}
+
+		if (params.remove_host) {
+
+			vk_decon(preprocessed_ch)
+			preprocessed_ch = vk_decon.out.reads
+
+		}
+
+		// if (do_preprocessing) {
+
+		// 	fastq_ch.dump(pretty: true, tag: "fastq_ch_check")
+		// 	nevermore_simple_preprocessing(fastq_ch)
+
+		// 	preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+		// 	results_ch = results_ch
+		// 		.concat(nevermore_simple_preprocessing.out.raw_counts)
+		// 		.map { sample, files -> files }
+
+		// 	if (params.remove_host) {
+
+		// 		vk_decon(preprocessed_ch)
+		// 		preprocessed_ch = vk_decon.out.reads				
+
+		// 	}
+			
+
+		// } else {
+
+		// 	preprocessed_ch = fastq_ch //.out.fastqs
+		// 		// .concat(bfastq_ch)
+
+		// }
+
+		//
+		/*	perform post-qc fastqc analysis and generate multiqc report on merged single-read and paired-end sets */
+
+		// fastqc(preprocessed_ch, "qc")
+
+		// multiqc(
+		// 	fastqc.out.stats
+		// 		.map { sample, report -> return report }.collect(),
+		// 	"${asset_dir}/multiqc.config",
+		// 	"qc"
+		// )
+
+		// if (do_preprocessing) {
+
+		// 	collate_ch = nevermore_simple_preprocessing.out.raw_counts
+		// 		.map { sample, file -> return file }
+		// 		.collect()
+		// 		.concat(
+		// 			fastqc.out.counts
+		// 				.map { sample, file -> return file }
+		// 				.collect()
+		// 		)
+			
+		// 	collate_stats(collate_ch.collect())
+
+		// }
 		//
 
 		if (get_basecounts || run_bam_analysis) {
