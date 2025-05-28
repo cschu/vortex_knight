@@ -1,5 +1,6 @@
 params.pathseq_skip_host_alignment = false
 params.pathseq_skip_quality_filters = false
+params.pathseq_filter_duplicates = true
 
 
 process pathseq {
@@ -24,6 +25,13 @@ process pathseq {
 		microbe_seq = "--microbe-dict ${params.pathseq_db_microbe_dict}"
 	}
 
+	def filter_duplicates = params.pathseq_filter_duplicates == true
+	// if (params.pathseq_filter_duplicates) {
+	// 	filter_duplicates += "--filter-duplicates true"
+	// } else {
+	// 	filter_duplicates += "--filter-duplicates false"
+	// }
+
     """
     mkdir -p ${sample.id}
 
@@ -40,6 +48,7 @@ process pathseq {
 		--score-metrics ${sample.id}/${sample.id}.pathseq.score_metrics \\
 		--is-host-aligned ${params.pathseq_skip_host_alignment} \\
 		--skip-quality-filters ${params.pathseq_skip_quality_filters} \\
-		--filter-metrics ${sample.id}/${sample.id}.pathseq.filter_metrics
+		--filter-metrics ${sample.id}/${sample.id}.pathseq.filter_metrics \\
+		--filter-duplicates ${filter_duplicates}
     """
 }
