@@ -12,7 +12,11 @@ process bam2fq {
 
     def filter_flags = "-F 0x900"
     if (keep_unmapped == true) {
-        filter_flags = "-F 0x900 -f 0xc"
+        if (sample.is_paired) {
+            filter_flags = "-F 0x900 -f 0xc"
+        } else {
+            filter_flags = "-F 0x900 -f 0x4"
+        }
     }
 
     """
