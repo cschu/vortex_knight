@@ -8,6 +8,8 @@ include { fastqc } from "../../nevermore/modules/qc/fastqc"
 params.remove_host_star_db = "/scratch/fspringe/Databases/STAR_index/Ahmad_crc-eco"
 params.remove_host_bwa_index = "/g/scb/zeller/fspringe/ReferenceGenomes/T2T-CHM13v2.0/chm13v2.0.fa.idx"
 
+params.decon_mode = "bwa_mem"
+
 workflow vk_decon {
 
 	take:
