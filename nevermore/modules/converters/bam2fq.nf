@@ -21,8 +21,8 @@ process bam2fq {
 
     """
     set -o pipefail
-    mkdir -p fastq/${sample.id}
-    samtools collate -@ $task.cpus -u -O $bam | samtools fastq ${filter_flags} -0 ${sample.id}_other.fastq.gz -1 ${sample.id}_R1.fastq.gz -2 ${sample.id}_R2.fastq.gz
+    mkdir -p fastq/${sample.id} tmp/
+    samtools collate -T tmp/tmpfile -@ $task.cpus -u -O $bam | samtools fastq ${filter_flags} -0 ${sample.id}_other.fastq.gz -1 ${sample.id}_R1.fastq.gz -2 ${sample.id}_R2.fastq.gz
 
     if [[ "\$?" -eq 0 ]];
     then
