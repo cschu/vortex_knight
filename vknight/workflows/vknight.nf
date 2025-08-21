@@ -73,7 +73,7 @@ workflow bam_analysis {
 		out_ch = Channel.empty()
     	if (run_pathseq) {
 			pathseq(bam_ch, params.pathseq_database)
-			out_ch = out_ch.concat(pathseq.out.scores)
+			out_ch = out_ch.mix(pathseq.out.scores)
     	}
 
 		out_ch = out_ch
@@ -93,17 +93,17 @@ workflow fastq_analysis {
 
 		if (run_kraken2) {
 			kraken2(fastq_ch, params.kraken_database)
-			out_ch = out_ch.concat(kraken2.out.kraken2_out)
+			out_ch = out_ch.mix(kraken2.out.kraken2_out)
 		}
 
 		if (run_motus) {
 			motus(fastq_ch, params.motus_database)
-			out_ch = out_ch.concat(motus.out.motus_out)
+			out_ch = out_ch.mix(motus.out.motus_out)
 		}
 
 		if (run_read_counter) {
 			read_counter(fastq_ch, params.read_counter_database)
-			out_ch = out_ch.concat(read_counter.out.read_counter_out)
+			out_ch = out_ch.mix(read_counter.out.read_counter_out)
 		}
 
 		out_ch = out_ch
@@ -112,11 +112,11 @@ workflow fastq_analysis {
 		if (run_mtags) {
 			mtags_extract(fastq_ch)
 	
-			mtags_annotate(mtags_extract.out.mtags_out)
+			// mtags_annotate(mtags_extract.out.mtags_out)
 	
-			mtags_merge(mtags_annotate.out.mtags_bins.collect())
+			// mtags_merge(mtags_annotate.out.mtags_bins.collect())
 
-			out_ch = out_ch.concat(mtags_merge.out.mtags_tables)
+			// out_ch = out_ch.mix(mtags_merge.out.mtags_tables)
 
 			if (run_mapseq) {
 
@@ -126,18 +126,18 @@ workflow fastq_analysis {
 
 					mapseq_with_customdb(mtags_extract.out.mtags_out, params.mapseq_db)
 					mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect()
-					out_ch = out_ch.concat(mapseq_with_customdb.out.bac_ssu)
+					out_ch = out_ch.mix(mapseq_with_customdb.out.bac_ssu)
 
 				} else {
 
 					mapseq(mtags_extract.out.mtags_out)
 					mapseq_ch = mapseq.out.bac_ssu.collect()
-					out_ch = out_ch.concat(mapseq.out.bac_ssu)
+					out_ch = out_ch.mix(mapseq.out.bac_ssu)
 
 				}
 	
 				collate_mapseq_tables(mapseq_ch)
-				out_ch = out_ch.concat(collate_mapseq_tables.out.ssu_tables)
+				out_ch = out_ch.mix(collate_mapseq_tables.out.ssu_tables)
 			}
 		}
 
@@ -161,25 +161,25 @@ workflow amplicon_analysis {
 
 			mapseq_with_customdb(fq2fa.out.reads, params.mapseq_db)
 			mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect() 
-			out_ch = out_ch.concat(mapseq_with_customdb.out.bac_ssu)
+			out_ch = out_ch.mix(mapseq_with_customdb.out.bac_ssu)
 
 		} else if (run_mapseq) {
 
 			mapseq(fq2fa.out.reads)
 			mapseq_ch = mapseq.out.bac_ssu.collect()
-			out_ch = out_ch.concat(mapseq.out.bac_ssu)
+			out_ch = out_ch.mix(mapseq.out.bac_ssu)
 
 		} 
 		
 		// out_ch = Channel.empty()
 		if (run_idtaxa) {
 			idtaxa(fq2fa.out.reads, params.idtaxa_classifier_db)
-			out_ch = out_ch.concat(idtaxa.out.count_table)
+			out_ch = out_ch.mix(idtaxa.out.count_table)
 		}
 
 		if (run_mapseq) {
 			collate_mapseq_tables(mapseq_ch)
-			out_ch = out_ch.concat(collate_mapseq_tables.out.ssu_tables)
+			out_ch = out_ch.mix(collate_mapseq_tables.out.ssu_tables)
 		} 
 
 
@@ -300,17 +300,17 @@ workflow vknight_main {
 				flagstats(fq2bam.out.reads, "basecounts")
 
 				flagstat_results_ch = flagstats.out.flagstats
-					.concat(flagstats.out.counts)
-					.concat(flagstats.out.is_paired)
+					.mix(flagstats.out.counts)
+					.mix(flagstats.out.is_paired)
 					.map { sample, files -> files }
-				results_ch = results_ch.concat(flagstat_results_ch)
+				results_ch = results_ch.mix(flagstat_results_ch)
 
 			}
 
 			if (run_bam_analysis) {
 
 				bam_analysis(fq2bam.out.reads)
-				results_ch = results_ch.concat(bam_analysis.out.results)
+				results_ch = results_ch.mix(bam_analysis.out.results)
 
 			}
 
@@ -319,14 +319,14 @@ workflow vknight_main {
 		if (run_fastq_analysis) {
 
 			fastq_analysis(preprocessed_ch)
-			results_ch = results_ch.concat(fastq_analysis.out.results)
+			results_ch = results_ch.mix(fastq_analysis.out.results)
 
 		}
 
 		if (run_amplicon_analysis) {
 
 			amplicon_analysis(preprocessed_ch)
-			results_ch = results_ch.concat(amplicon_analysis.out.results)
+			results_ch = results_ch.mix(amplicon_analysis.out.results)
 
 		}
 
