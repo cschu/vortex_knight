@@ -9,6 +9,7 @@ include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
 include { idtaxa } from "../modules/profilers/idtaxa"
+include { run_metaphlan4 as metaphlan4; collate_metaphlan4_tables } from "../../nevermore/modules/profilers/metaphlan4"
 
 include { fq2fa } from "../../nevermore/modules/converters/fq2fa"
 include { fastqc } from "../../nevermore/modules/qc/fastqc"
@@ -53,6 +54,7 @@ def run_motus = (!params.skip_motus || params.run_motus);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
 def run_idtaxa = (!params.skip_idtaxa || params.run_idtaxa)
+def run_metaphlan4 = (!params.skip_metaphlan4 || params.run_metaphlan4)
 
 def asset_dir = "${projectDir}/nevermore/assets"
 
@@ -90,6 +92,11 @@ workflow fastq_analysis {
 
 	main:
 		out_ch = Channel.empty()
+
+		if (run_metaphlan4) {
+			metaphlan4(fastq_ch, params.metaphlan4_db)
+			collate_metaphlan4_tables(metaphlan4.out.mp4_table)
+		}
 
 		if (run_kraken2) {
 			kraken2(fastq_ch, params.kraken_database)
