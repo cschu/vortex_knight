@@ -119,11 +119,13 @@ workflow fastq_analysis {
 		if (run_mtags) {
 			mtags_extract(fastq_ch)
 	
-			// mtags_annotate(mtags_extract.out.mtags_out)
+			if (params.run_downstream_mtags) {
+				mtags_annotate(mtags_extract.out.mtags_out)
 	
-			// mtags_merge(mtags_annotate.out.mtags_bins.collect())
+				mtags_merge(mtags_annotate.out.mtags_bins.collect())
 
-			// out_ch = out_ch.mix(mtags_merge.out.mtags_tables)
+				out_ch = out_ch.mix(mtags_merge.out.mtags_tables)
+			}
 
 			if (run_mapseq) {
 
