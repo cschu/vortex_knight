@@ -1,4 +1,6 @@
 process fq2fa {
+	container "quay.io/biocontainers/bbmap:39.06--h92535d8_0"
+
     input:
     tuple val(sample), path(fq)
 

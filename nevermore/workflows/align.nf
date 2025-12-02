@@ -2,141 +2,103 @@
 
 nextflow.enable.dsl=2
 
-include { fastqc } from "../modules/qc/fastqc"
-include { multiqc } from "../modules/qc/multiqc"
 include { bwa_mem_align } from "../modules/align/bwa"
-include { merge_and_sort } from "../modules/align/helpers"
-include { merge_single_fastqs } from "../modules/converters/merge_fastqs"
+include { minimap2_align } from "../modules/align/minimap2"
+include { merge_and_sort; merge_sam } from "../modules/align/helpers"
 
 def asset_dir = "${projectDir}/nevermore/assets"
+def do_alignment = params.run_gffquant || !params.skip_alignment
+def do_stream = params.gq_stream
+def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
 
+params.do_name_sort = true
 
-workflow nevermore_prep_align {
+if (params.align == null) {
 
-	take:
-		fastq_ch
-	
-	main:
-		/*	route all single-read files into a common channel */
-
-		single_ch = fastq_ch
-			.filter { it[0].is_paired == false }
-			.map { sample, fastq ->
-				def meta = [:]
-				meta.id = fastq.name.replaceAll(/_R1.fastq.gz$/, "")
-				meta.is_paired = false
-				meta.merged = false
-				return tuple(meta, fastq)
-			}
-
-		/*	route all paired-end read files into a common channel */
-
-		paired_ch = fastq_ch
-			.filter { it[0].is_paired == true }
-			.map { sample, fastq ->
-				def meta = [:]
-				meta.id = sample.id
-				meta.is_paired = true
-				meta.merged = true
-				return tuple(meta, fastq)
-			}
-
-		/*	group all single-read files by sample and route into merge-channel */
-
-		merged_single_ch = single_ch
-			.map { sample, fastq ->
-				return tuple(
-					sample.id.replaceAll(/.(orphans|singles|chimeras)$/, ".singles"),
-					fastq
-				)
-			}
-			.groupTuple(sort: true)
-			.map { sample_id, files ->
-				def meta = [:]
-				meta.id = sample_id
-				meta.is_paired = false
-				meta.merged = true
-				return tuple(meta, files)
-			}
-
-		/*	then merge single-read file groups into single files */
-
-		merge_single_fastqs(merged_single_ch)
-
-		/* 	take all single-read files except for the qc-survivors,
-			concat with merged single-read files (takes care of single-end qc-survivors),
-			concat with paired-end files,
-			and route them into a channel for post-qc fastqc analysis
-			(THIS IS JUST FOR STATS PURPOSES, NO WORRIES, THE SE READS ARE PROCESSED PROPERLY!)
-		*/
-
-		fastqc_in_ch = single_ch
-			.filter { ! it[0].id.endsWith(".singles") }
-			.map { sample, fastq ->
-				def meta = [:]
-				meta.id = fastq.name.replaceAll(/_R1.fastq.gz$/, "")
-				meta.is_paired = false
-				meta.merged = false
-				return tuple(meta, fastq)
-			}
-			.concat(merge_single_fastqs.out.fastq)
-			.concat(paired_ch)
-
-		/*	perform post-qc fastqc analysis and generate multiqc report on merged single-read and paired-end sets */
-
-		fastqc(fastqc_in_ch, "qc")
-
-		multiqc(
-			fastqc.out.stats
-				.filter { it[0].merged == true || it[0].is_paired == true }
-				.map { sample, report -> return report }
-				.collect(),
-			"${asset_dir}/multiqc.config",
-			"qc"
-		)
-
-		fastq_prep_ch = paired_ch.concat(merge_single_fastqs.out.fastq)
-
-	emit:
-		fastqs = fastq_prep_ch
-		read_counts = fastqc.out.counts
-		
-
+	params.align = [:]
 }
 
+if (params.align.run_minimap2 == null) {
+	params.align.run_minimap2 = false
+}
+
+if (params.align.run_bwa == null) {
+	params.align.run_bwa = false
+}
+
+print "PARAMS-ALIGN: ${params}"
 
 workflow nevermore_align {
 
 	take:
-
 		fastq_ch
 
 	main:
-		
+
+		alignment_ch = Channel.empty()
+		aln_counts_ch = Channel.empty()
+
 		/*	align merged single-read and paired-end sets against reference */
 
-		bwa_mem_align(
-			fastq_ch,
-			params.reference,
-			true
-		)
+		if (params.align.run_minimap2) {
+			minimap2_align(
+				fastq_ch,
+				params.reference,
+				params.do_name_sort
+			)
 
-		/*	merge paired-end and single-read alignments into single per-sample bamfiles */
-
-		aligned_ch = bwa_mem_align.out.bam
-			.map { sample, bam ->
+			minimap_aligned_ch = minimap2_align.out.sam
+			.map { sample, sam ->
 				sample_id = sample.id.replaceAll(/.(orphans|singles|chimeras)$/, "")
-				return tuple(sample_id, bam)
+				return tuple(sample_id, sam)
 			}
 			.groupTuple(sort: true)
 
-		merge_and_sort(aligned_ch, true)
+			/*	merge paired-end and single-read alignments into single per-sample bamfiles */
+			merge_sam(minimap_aligned_ch
+				.map { sample_id, samfiles ->
+					def meta = [:]
+					meta.id = sample_id
+					return tuple(meta, samfiles)
+			})
 
+			alignment_ch = alignment_ch
+				.mix(merge_sam.out.sam)			
+			aln_counts_ch = aln_counts_ch
+				.mix(merge_sam.out.flagstats)			
+			
+		}
+
+		if (params.align.run_bwa) {
+			bwa_mem_align(
+				fastq_ch,
+				params.reference,
+				true
+			)
+
+			/*	merge paired-end and single-read alignments into single per-sample bamfiles */
+
+			aligned_ch = bwa_mem_align.out.bam
+				.map { sample, bam ->
+					sample_id = sample.id.replaceAll(/.(orphans|singles|chimeras)$/, "")
+					return tuple(sample_id, bam)
+				}
+				.groupTuple(sort: true)
+
+			merge_and_sort(aligned_ch
+				.map { sample_id, bamfiles ->
+					def meta = [:]
+					meta.id = sample_id
+					return tuple(meta, bamfiles)
+				}, true)
+
+			alignment_ch = alignment_ch
+				.mix(merge_and_sort.out.bam)
+			aln_counts_ch = aln_counts_ch
+				.mix(merge_and_sort.out.flagstats)
+		}
 
 	emit:
-
-		alignments = merge_and_sort.out.bam
-		aln_counts = merge_and_sort.out.flagstats
-
+		alignments = alignment_ch 
+		aln_counts = aln_counts_ch
 }
-
