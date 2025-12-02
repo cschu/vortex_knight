@@ -23,8 +23,8 @@ params.do_bam2fq_conversion = true // vknight bam input requires this
 
 def input_dir = (params.input_dir) ? params.input_dir : params.remote_input_dir
 
-
-def fastq_input_pattern = input_dir + "/" + "**[._]{fastq.gz,fq.gz}"
+params.fastq_input_pattern = "**[._]{fastq.gz,fq.gz,fastq.bz2,fq.bz2}"
+def fastq_input_pattern = input_dir + "/" + params.fastq_input_pattern
 def bam_input_pattern = input_dir + "/" + "**.bam"
 
 
@@ -34,17 +34,18 @@ workflow {
 		bam_input(
 			Channel.fromPath(bam_input_pattern)
 		)
-		fastq_ch = bam_input.out.bamfiles
+		fastq_ch = bam_input.out.fastqs
 	} else {
 		fastq_input(
-			Channel.fromPath(input_dir + "/*", type: "dir")
+			// Channel.fromPath(input_dir + "/*", type: "dir")
+			Channel.fromPath(fastq_input_pattern),
+			Channel.of(null)
 		)
 		fastq_ch = fastq_input.out.fastqs
 	}
-	
-	// fastq_ch = fastq_input.out.fastqs.concat(bam_input.out.bamfiles)
-	fastq_ch.view()
 
-	vknight_main(fastq_ch)
+	nevermore_main(fastq_ch)
+	
+	vknight_main(nevermore_main.out.fastqs)
 
 }

@@ -57,8 +57,22 @@ workflow nevermore_main {
 
 		}
 
+
+		preprocessed_fastq_ch = nevermore_pack_reads.out.fastqs
+			.map { sample, fastqs ->
+				sample_id = sample.id.replaceAll(/\.singles$/, "")
+				return tuple(sample_id, fastqs)
+			}
+			.groupTuple(size: ((params.single_end_libraries) ? 1 : 2), remainder: true)
+			.map { sample_id, fastqs ->
+				def meta = [:]
+				meta.id = sample_id				
+				return tuple(meta, [fastqs].flatten())
+			}
+
 	emit:
-		fastqs = nevermore_pack_reads.out.fastqs
+		// fastqs = nevermore_pack_reads.out.fastqs
+		fastqs = preprocessed_fastq_ch
 		readcounts = collate_ch
 
 }

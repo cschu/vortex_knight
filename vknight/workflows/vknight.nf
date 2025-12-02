@@ -203,44 +203,44 @@ workflow vknight_main {
 	main:
 		results_ch = Channel.empty()
 		
-		if (params.run_qc) {
+		// if (params.run_qc) {
 
-			fastq_ch.dump(pretty: true, tag: "fastq_ch_check")
-			nevermore_simple_preprocessing(fastq_ch)
+		// 	fastq_ch.dump(pretty: true, tag: "fastq_ch_check")
+		// 	nevermore_simple_preprocessing(fastq_ch)
 
-			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
-			results_ch = results_ch
-				.mix(nevermore_simple_preprocessing.out.raw_counts)
-				.map { sample, files -> files }
+		// 	preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+		// 	results_ch = results_ch
+		// 		.mix(nevermore_simple_preprocessing.out.raw_counts)
+		// 		.map { sample, files -> files }
 
 
-			fastqc(preprocessed_ch, "qc")
+		// 	fastqc(preprocessed_ch, "qc")
 
-			multiqc(
-				fastqc.out.stats
-					.map { sample, report -> return report }.collect(),
-				"${asset_dir}/multiqc.config",
-				"qc"
-			)
+		// 	multiqc(
+		// 		fastqc.out.stats
+		// 			.map { sample, report -> return report }.collect(),
+		// 		"${asset_dir}/multiqc.config",
+		// 		"qc"
+		// 	)
 
-			collate_ch = nevermore_simple_preprocessing.out.raw_counts
-				.map { sample, file -> return file }
-				.collect()
-				.mix(
-					fastqc.out.counts
-						.map { sample, file -> return file }
-						.collect()
-				)
+		// 	collate_ch = nevermore_simple_preprocessing.out.raw_counts
+		// 		.map { sample, file -> return file }
+		// 		.collect()
+		// 		.mix(
+		// 			fastqc.out.counts
+		// 				.map { sample, file -> return file }
+		// 				.collect()
+		// 		)
 			
-			collate_stats(collate_ch.collect())
+		// 	collate_stats(collate_ch.collect())
 
-		} else {
+		// } else {
 
-			preprocessed_ch = fastq_ch
+		// 	preprocessed_ch = fastq_ch
 
-		}
+		// }
 
-		if (params.remove_host) {
+		if (params.remove_host == "vk_decon") {
 
 			vk_decon(preprocessed_ch)
 			preprocessed_ch = vk_decon.out.reads
