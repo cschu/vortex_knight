@@ -9,6 +9,7 @@ include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
 include { idtaxa } from "../modules/profilers/idtaxa"
+include { run_metaphlan4 as metaphlan4; collate_metaphlan4_tables } from "../../nevermore/modules/profilers/metaphlan4"
 
 include { fq2fa } from "../../nevermore/modules/converters/fq2fa"
 include { fastqc } from "../../nevermore/modules/qc/fastqc"
@@ -19,6 +20,9 @@ include { remove_host_kraken2; remove_host_kraken2_individual } from "../../neve
 include { flagstats } from "../../nevermore/modules/stats"
 include { collate_results } from "../modules/collate"
 include { collate_stats } from "../../nevermore/modules/collate"
+include { starmap } from "../modules/decon/starmap"
+
+include { vk_decon } from "./decon"
 
 
 if (!params.publish_mode) {
@@ -50,6 +54,7 @@ def run_motus = (!params.skip_motus || params.run_motus);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
 def run_idtaxa = (!params.skip_idtaxa || params.run_idtaxa)
+def run_metaphlan4 = (!params.skip_metaphlan4 || params.run_metaphlan4)
 
 def asset_dir = "${projectDir}/nevermore/assets"
 
@@ -70,7 +75,7 @@ workflow bam_analysis {
 		out_ch = Channel.empty()
     	if (run_pathseq) {
 			pathseq(bam_ch, params.pathseq_database)
-			out_ch = out_ch.concat(pathseq.out.scores)
+			out_ch = out_ch.mix(pathseq.out.scores)
     	}
 
 		out_ch = out_ch
@@ -88,19 +93,24 @@ workflow fastq_analysis {
 	main:
 		out_ch = Channel.empty()
 
+		if (run_metaphlan4) {
+			metaphlan4(fastq_ch, params.metaphlan4_db)
+			collate_metaphlan4_tables(metaphlan4.out.mp4_table)
+		}
+
 		if (run_kraken2) {
 			kraken2(fastq_ch, params.kraken_database)
-			out_ch = out_ch.concat(kraken2.out.kraken2_out)
+			out_ch = out_ch.mix(kraken2.out.kraken2_out)
 		}
 
 		if (run_motus) {
 			motus(fastq_ch, params.motus_database)
-			out_ch = out_ch.concat(motus.out.motus_out)
+			out_ch = out_ch.mix(motus.out.motus_out)
 		}
 
 		if (run_read_counter) {
 			read_counter(fastq_ch, params.read_counter_database)
-			out_ch = out_ch.concat(read_counter.out.read_counter_out)
+			out_ch = out_ch.mix(read_counter.out.read_counter_out)
 		}
 
 		out_ch = out_ch
@@ -109,11 +119,13 @@ workflow fastq_analysis {
 		if (run_mtags) {
 			mtags_extract(fastq_ch)
 	
-			mtags_annotate(mtags_extract.out.mtags_out)
+			if (params.run_downstream_mtags) {
+				mtags_annotate(mtags_extract.out.mtags_out)
 	
-			mtags_merge(mtags_annotate.out.mtags_bins.collect())
+				mtags_merge(mtags_annotate.out.mtags_bins.collect())
 
-			out_ch = out_ch.concat(mtags_merge.out.mtags_tables)
+				out_ch = out_ch.mix(mtags_merge.out.mtags_tables)
+			}
 
 			if (run_mapseq) {
 
@@ -123,18 +135,18 @@ workflow fastq_analysis {
 
 					mapseq_with_customdb(mtags_extract.out.mtags_out, params.mapseq_db)
 					mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect()
-					out_ch = out_ch.concat(mapseq_with_customdb.out.bac_ssu)
+					out_ch = out_ch.mix(mapseq_with_customdb.out.bac_ssu)
 
 				} else {
 
 					mapseq(mtags_extract.out.mtags_out)
 					mapseq_ch = mapseq.out.bac_ssu.collect()
-					out_ch = out_ch.concat(mapseq.out.bac_ssu)
+					out_ch = out_ch.mix(mapseq.out.bac_ssu)
 
 				}
 	
 				collate_mapseq_tables(mapseq_ch)
-				out_ch = out_ch.concat(collate_mapseq_tables.out.ssu_tables)
+				out_ch = out_ch.mix(collate_mapseq_tables.out.ssu_tables)
 			}
 		}
 
@@ -158,25 +170,25 @@ workflow amplicon_analysis {
 
 			mapseq_with_customdb(fq2fa.out.reads, params.mapseq_db)
 			mapseq_ch = mapseq_with_customdb.out.bac_ssu.collect() 
-			out_ch = out_ch.concat(mapseq_with_customdb.out.bac_ssu)
+			out_ch = out_ch.mix(mapseq_with_customdb.out.bac_ssu)
 
 		} else if (run_mapseq) {
 
 			mapseq(fq2fa.out.reads)
 			mapseq_ch = mapseq.out.bac_ssu.collect()
-			out_ch = out_ch.concat(mapseq.out.bac_ssu)
+			out_ch = out_ch.mix(mapseq.out.bac_ssu)
 
 		} 
 		
 		// out_ch = Channel.empty()
 		if (run_idtaxa) {
 			idtaxa(fq2fa.out.reads, params.idtaxa_classifier_db)
-			out_ch = out_ch.concat(idtaxa.out.count_table)
+			out_ch = out_ch.mix(idtaxa.out.count_table)
 		}
 
 		if (run_mapseq) {
 			collate_mapseq_tables(mapseq_ch)
-			out_ch = out_ch.concat(collate_mapseq_tables.out.ssu_tables)
+			out_ch = out_ch.mix(collate_mapseq_tables.out.ssu_tables)
 		} 
 
 
@@ -190,62 +202,31 @@ workflow vknight_main {
 		fastq_ch
 	main:
 		results_ch = Channel.empty()
-
-		if (do_preprocessing) {
+		
+		if (params.run_qc) {
 
 			fastq_ch.dump(pretty: true, tag: "fastq_ch_check")
 			nevermore_simple_preprocessing(fastq_ch)
 
 			preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
 			results_ch = results_ch
-				.concat(nevermore_simple_preprocessing.out.raw_counts)
+				.mix(nevermore_simple_preprocessing.out.raw_counts)
 				.map { sample, files -> files }
 
-			if (params.remove_host) {
 
-				if (params.remove_host == "individual") {
+			fastqc(preprocessed_ch, "qc")
 
-					remove_host_kraken2_individual(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
-
-					preprocessed_ch = remove_host_kraken2_individual.out.reads
-
-
-				} else if (params.remove_host == "pair") {
-
-					remove_host_kraken2(nevermore_simple_preprocessing.out.main_reads_out, params.remove_host_kraken2_db)
-
-					preprocessed_ch = remove_host_kraken2.out.reads
-
-				}
-
-			}
-			
-
-		} else {
-
-			preprocessed_ch = fastq_ch //.out.fastqs
-				// .concat(bfastq_ch)
-
-		}
-
-		//
-		/*	perform post-qc fastqc analysis and generate multiqc report on merged single-read and paired-end sets */
-
-		fastqc(preprocessed_ch, "qc")
-
-		multiqc(
-			fastqc.out.stats
-				.map { sample, report -> return report }.collect(),
-			"${asset_dir}/multiqc.config",
-			"qc"
-		)
-
-		if (do_preprocessing) {
+			multiqc(
+				fastqc.out.stats
+					.map { sample, report -> return report }.collect(),
+				"${asset_dir}/multiqc.config",
+				"qc"
+			)
 
 			collate_ch = nevermore_simple_preprocessing.out.raw_counts
 				.map { sample, file -> return file }
 				.collect()
-				.concat(
+				.mix(
 					fastqc.out.counts
 						.map { sample, file -> return file }
 						.collect()
@@ -253,7 +234,70 @@ workflow vknight_main {
 			
 			collate_stats(collate_ch.collect())
 
+		} else {
+
+			preprocessed_ch = fastq_ch
+
 		}
+
+		if (params.remove_host) {
+
+			vk_decon(preprocessed_ch)
+			preprocessed_ch = vk_decon.out.reads
+
+		}
+
+		// if (do_preprocessing) {
+
+		// 	fastq_ch.dump(pretty: true, tag: "fastq_ch_check")
+		// 	nevermore_simple_preprocessing(fastq_ch)
+
+		// 	preprocessed_ch = nevermore_simple_preprocessing.out.main_reads_out
+		// 	results_ch = results_ch
+		// 		.concat(nevermore_simple_preprocessing.out.raw_counts)
+		// 		.map { sample, files -> files }
+
+		// 	if (params.remove_host) {
+
+		// 		vk_decon(preprocessed_ch)
+		// 		preprocessed_ch = vk_decon.out.reads				
+
+		// 	}
+			
+
+		// } else {
+
+		// 	preprocessed_ch = fastq_ch //.out.fastqs
+		// 		// .concat(bfastq_ch)
+
+		// }
+
+		//
+		/*	perform post-qc fastqc analysis and generate multiqc report on merged single-read and paired-end sets */
+
+		// fastqc(preprocessed_ch, "qc")
+
+		// multiqc(
+		// 	fastqc.out.stats
+		// 		.map { sample, report -> return report }.collect(),
+		// 	"${asset_dir}/multiqc.config",
+		// 	"qc"
+		// )
+
+		// if (do_preprocessing) {
+
+		// 	collate_ch = nevermore_simple_preprocessing.out.raw_counts
+		// 		.map { sample, file -> return file }
+		// 		.collect()
+		// 		.concat(
+		// 			fastqc.out.counts
+		// 				.map { sample, file -> return file }
+		// 				.collect()
+		// 		)
+			
+		// 	collate_stats(collate_ch.collect())
+
+		// }
 		//
 
 		if (get_basecounts || run_bam_analysis) {
@@ -262,20 +306,20 @@ workflow vknight_main {
 
 			if (get_basecounts) {
 
-				flagstats(fq2bam.out.reads)
+				flagstats(fq2bam.out.reads, "basecounts")
 
 				flagstat_results_ch = flagstats.out.flagstats
-					.concat(flagstats.out.counts)
-					.concat(flagstats.out.is_paired)
+					.mix(flagstats.out.counts)
+					.mix(flagstats.out.is_paired)
 					.map { sample, files -> files }
-				results_ch = results_ch.concat(flagstat_results_ch)
+				results_ch = results_ch.mix(flagstat_results_ch)
 
 			}
 
 			if (run_bam_analysis) {
 
 				bam_analysis(fq2bam.out.reads)
-				results_ch = results_ch.concat(bam_analysis.out.results)
+				results_ch = results_ch.mix(bam_analysis.out.results)
 
 			}
 
@@ -284,14 +328,14 @@ workflow vknight_main {
 		if (run_fastq_analysis) {
 
 			fastq_analysis(preprocessed_ch)
-			results_ch = results_ch.concat(fastq_analysis.out.results)
+			results_ch = results_ch.mix(fastq_analysis.out.results)
 
 		}
 
 		if (run_amplicon_analysis) {
 
 			amplicon_analysis(preprocessed_ch)
-			results_ch = results_ch.concat(amplicon_analysis.out.results)
+			results_ch = results_ch.mix(amplicon_analysis.out.results)
 
 		}
 

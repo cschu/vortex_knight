@@ -128,7 +128,7 @@ workflow bam_input {
 			.map { classify_sample(it[0], it[1]) }
 
 		if (params.do_bam2fq_conversion) {
-			bam2fq(bam_ch)
+			bam2fq(bam_ch, false)
 			bam_ch = bam2fq.out.reads
 				.map { classify_sample(it[0].id, it[1]) }
 		}
