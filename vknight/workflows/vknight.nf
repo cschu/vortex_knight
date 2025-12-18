@@ -202,7 +202,7 @@ workflow vknight_main {
 		fastq_ch
 	main:
 		results_ch = Channel.empty()
-		
+		preprocessed_ch = fastq_ch
 		// if (params.run_qc) {
 
 		// 	fastq_ch.dump(pretty: true, tag: "fastq_ch_check")
