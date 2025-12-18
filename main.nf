@@ -27,6 +27,7 @@ params.fastq_input_pattern = "**[._]{fastq.gz,fq.gz,fastq.bz2,fq.bz2}"
 def fastq_input_pattern = input_dir + "/" + params.fastq_input_pattern
 def bam_input_pattern = input_dir + "/" + "**.bam"
 
+print "PARAMS: ${params}"
 
 workflow {
 
