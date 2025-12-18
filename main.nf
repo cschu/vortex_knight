@@ -4,6 +4,7 @@ nextflow.enable.dsl=2
 
 include { fastq_input; bam_input } from "./nevermore/workflows/input"
 include { vknight_main } from "./vknight/workflows/vknight"
+include { nevermore_main } from "./nevermore/workflows/nevermore"
 
 
 if (params.input_dir && params.remote_input_dir) {
