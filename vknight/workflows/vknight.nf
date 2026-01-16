@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 include { kraken2 } from  "../modules/profilers/kraken2"
 include { mtags_extract; mtags_annotate; mtags_merge } from "../modules/profilers/mtags"
-include { motus } from  "../modules/profilers/motus"
+include { motus; motus4 } from  "../modules/profilers/motus"
 include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules/profilers/mapseq"
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
@@ -51,6 +51,7 @@ def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2);
 def run_mtags = (!params.skip_mtags || params.run_mtags);
 def run_mapseq = (run_mtags && (!params.skip_mapseq || params.run_mapseq) && params.mapseq_bin)
 def run_motus = (!params.skip_motus || params.run_motus);
+def run_motus4 = (!params.skip_motus4 || params.run_motus4);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
 def run_idtaxa = (!params.skip_idtaxa || params.run_idtaxa)
@@ -106,6 +107,11 @@ workflow fastq_analysis {
 		if (run_motus) {
 			motus(fastq_ch, params.motus_database)
 			out_ch = out_ch.mix(motus.out.motus_out)
+		}
+
+		if (run_motus4) {
+			motus4(fastq_ch, params.motus4_database)
+			out_ch = out_ch.mix(motus4.out.motus_out)
 		}
 
 		if (run_read_counter) {
