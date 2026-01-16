@@ -57,6 +57,8 @@ workflow nevermore_main {
 
 		}
 
+		collate_stats(collate_ch.collect())
+
 
 		preprocessed_fastq_ch = nevermore_pack_reads.out.fastqs
 			.map { sample, fastqs ->
