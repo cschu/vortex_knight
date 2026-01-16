@@ -1,10 +1,10 @@
-params.motus_tax_level = "mOTU"
-params.motus_min_length = 75
-params.motus_n_marker_genes = 3
-params.motus_readcount_type = "insert.scaled_counts"
+params.motus_tax_level = "mOTU"  // -k
+params.motus_min_length = 75  // -l
+params.motus_n_marker_genes = 3  // -g 
+params.motus_readcount_type = "insert.scaled_counts"  // -y
 params.motus_run_mapsnv = false
-params.motus_full_rank_taxonomy = false
-params.motus_print_counts = false
+params.motus_full_rank_taxonomy = false  // -q 
+params.motus_print_counts = false // -c 
 
 process motus {
     container "quay.io/biocontainers/motus:3.1.0--pyhdfd78af_0"
