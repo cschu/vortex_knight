@@ -228,7 +228,7 @@ workflow vknight_main {
 				flagstats_libtype(
 					flagstats.out.is_paired
 						.map { id, file -> file }
-						.collate()
+						.collect()
 				)
 
 			}
