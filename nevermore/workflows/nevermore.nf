@@ -64,12 +64,13 @@ workflow nevermore_main {
 		preprocessed_fastq_ch = nevermore_pack_reads.out.fastqs
 			.map { sample, fastqs ->
 				sample_id = sample.id.replaceAll(/\.singles$/, "")
-				return tuple(sample_id, fastqs)
+				return [ sample_id, sample.is_paired, fastqs ]  //tuple(sample_id, fastqs)
 			}
 			.groupTuple(size: ((params.single_end_libraries) ? 1 : 2), remainder: true)
-			.map { sample_id, fastqs ->
+			.map { sample_id, pair_info, fastqs ->
 				def meta = [:]
-				meta.id = sample_id				
+				meta.id = sample_id
+				// meta.is_paired = pair_info.contains(true)
 				return tuple(meta, [fastqs].flatten())
 			}
 
