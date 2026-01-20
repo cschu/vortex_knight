@@ -1,73 +1,46 @@
 # vortex_knight
 
-### Installing locally and running from local installation
+#### Description
 
-1. Clone the repo from GitHub.
+`vortex_knight` is a taxonomic profiling nextflow workflow, utilising an ensemble of taxonomic profilers. 
 
+---
+# Requirements
+
+The easiest way to handle dependencies is via Singularity/Docker containers. Alternatively, conda environments, software module systems or native installations can be used.
+
+## Preprocessing
+
+Preprocessing and QA is done with `bbmap`, `fastqc`, and `multiqc`.
+
+
+---
+# Usage
+## Cloud-based Workflow Manager (CloWM)
+This workflow will be available on the `CloWM` platform (coming soon).
+
+## Command-Line Interface (CLI)
+The workflow run is controlled by environment-specific parameters (see [run.config](https://github.com/cschu/vortex_knight/blob/main/config/run.config)) and study-specific parameters (see [params.yml](https://github.com/cschu/vortex_knight/blob/main/config/params.yml)). The parameters in the `params.yml` can be specified on the command line as well.
+
+You can either clone this repository from GitHub and run it as follows
 ```
 git clone https://github.com/cschu/vortex_knight.git
+nextflow run /path/to/vortex_knight [-resume] -c /path/to/run.config -params-file /path/to/params.yml
 ```
 
-2. Create a conda environment with NextFlow, e.g. by using the provided `environment.yml`.
-
+Or, you can have nextflow pull it from github and run it from the `$HOME/.nextflow` directory.
 ```
-cd vortex_knight
-conda env create -f environment.yml
-conda activate vortex_knight
+nextflow run cschu/vortex_knight [-resume] -c /path/to/run.config -params-file /path/to/params.yml
 ```
 
-3. Make a copy of the `config/run.config` file and adjust it to your environment.
+## Input files
+Fastq files are supported and can be either uncompressed (but shouldn't be!) or compressed with `gzip` or `bzip2`. Sample data can be arranged in one single input directory ("flat") or as one directory per sample ("tree").
 
-4. Run the pipeline 
-
-``` 
-nextflow run /path/to/vortex_knight/main.nf --input_dir /path/to/input_files --output_dir /path/to/output_dir -c /path/to/run.config
-```
-
-*Note: Nextflow itself requires at least `5GB` of memory.*
-
-### Running from GitHub
-
-This requires a local nextflow installation. If you don't have one, see Steps 1/2 above.
-
-1. Make a local copy of the [run configuration file](https://raw.githubusercontent.com/cschu/vortex_knight/main/nextflow/run.config) and adjust to your environment.
-
-2. Run the pipeline
-
-```
-nextflow run cschu/vortex_knight --input_dir /path/to/input_files --output_dir /path/to/output_dir -c /path/to/run.config
-```
-
-*Note: Nextflow itself requires at least `5GB` of memory.*
-
-### Input parameters
-
-* `--input_dir` should be a folder with bam files or with gzipped fastq files. For fastq files, individual samples should be separated into individual folders.
-* `--output_dir` is `vknight_out` in the local directory by default.
-* `--skip_<analysis>`, `--run_<analysis>` skips, resp. explicitly requires execution of the specified analysis (`motus`, `pathseq`, `count_reads`, `mtags`, `mapseq`, `kraken2`)
-* `--publishMode` allows to switch between various modes of how results files are placed in the `output_dir` (cf. NextFlow documentation)
-
-#### Notes
-* `mapseq` can only run in combination with `mtags` and when the parameter `mapseq_bin` is explicitly set.
-* `kraken2` can only run when the parameter `kraken_database` is set.
-* `pathseq` can only run when the parameter `pathseq_database` is set.
-* a pre-downloaded motus database can be set with the parameter `motus_database`.
-* results are only collated if the parameter `collate_script` is set. (TODO -> change to baseDir?)
+Mates 1 and 2 can be specified with suffixes `_[12]`, `_R[12]`, `.[12]`, `.R[12]`. Lane IDs or other read id modifiers have to precede the mate identifier. Files with names not containing either of those patterns will be assigned to be single-ended. Samples consisting of both single and paired end files are assumed to be paired end with all single end files being orphans (quality control survivors). 
 
 
-5. Outputs
+### All files in one directory -- "flat"
+Files in the input directory must have perfectly matching prefixes in order to be associated as belonging to the same sample. Orphans belonging to the same sample as a paired-end file pair must contain the same sample prefix as well as the string `.singles` (preceding any `R1`/`R2` suffix and the fastq suffix.)
 
-The output folder contains:
-
-* one subdirectory `otu_tables` containing the summarised `mapseq` otu tables
-* a subdirectory per sample (named `<sample>`) with
-  * the kraken2 report `<sample>.kraken2_report.txt`
-  * the library size `<sample>.libsize.txt`
-  * the mOTUs report `<sample>.motus.txt`
-  * pathseq output
-    - `<sample>.pathseq.bam`
-    - `<sample>.pathseq.bam.sgi`
-    - `<sample>.pathseq.score_metrics`
-    - `<sample>.pathseq.scores`
-
-**Note that by default, all files in the output folder are symlinks into the work dir! Before you delete the work dir, ensure you have dereferenced copies. Alternatively, change the --publishMode parameter to `copy` or `link` (if the target file system supports hard links).**
+### Per-sample input subdirectories -- "tree"
+All files in a sample directory will be associated with the name of the sample folder. Paired-end mate files need to have matching prefixes. 
