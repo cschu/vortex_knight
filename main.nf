@@ -44,6 +44,8 @@ workflow {
 		fastq_ch = fastq_input.out.fastqs
 	}
 
+	fastq_ch.dump(pretty: true, tag: fastq_ch_dump)
+
 	nevermore_main(fastq_ch)
 	
 	vknight_main(nevermore_main.out.fastqs)
