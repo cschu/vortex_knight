@@ -19,3 +19,21 @@ process flagstats {
     grep -m 1 "paired in sequencing" "${stage}/${sample.id}/${sample.id}.flagstats.txt" | awk '{npaired = \$1 + \$3; if (npaired==0) {print "unpaired"} else {print "paired"};}' > "${stage}/${sample.id}/${sample.id}.is_paired.txt"
     """
 }
+
+
+process flagstats_libtype {
+    label "default"
+    publishDir "${params.output_dir}", mode: "copy"
+
+    input:
+    path(files)
+
+    output:
+    path("stats/library_type.txt")
+
+    script:
+    """
+    mkdir -p stats/
+    find . -maxdepth 1 -mindepth -1 -name '*is_paired.txt' | awk -v OFS='\t' '{ print gensub(/.+\\/(.+).is_paired.txt/, "\\\\1", "g", FILENAME), \$0;}' {} > stats/library_type.txt
+    """
+}
