@@ -34,6 +34,6 @@ process flagstats_libtype {
     script:
     """
     mkdir -p stats/
-    find . -maxdepth 1 -mindepth 1 -name '*is_paired.txt' | awk -v OFS='\t' '{ print gensub(/.+\\/(.+).is_paired.txt/, "\\\\1", "g", FILENAME), \$0;}' {} > stats/library_type.txt
+    find . -maxdepth 1 -mindepth 1 -name '*is_paired.txt' | xargs -I {} awk -v OFS='\t' '{ print gensub(/.+\\/(.+).is_paired.txt/, "\\\\1", "g", FILENAME), \$0;}' {} > stats/library_type.txt
     """
 }
