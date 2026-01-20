@@ -20,8 +20,6 @@ if (params.input_dir && params.remote_input_dir) {
 }
 
 
-params.do_bam2fq_conversion = true // vknight bam input requires this
-
 def input_dir = (params.input_dir) ? params.input_dir : params.remote_input_dir
 
 params.fastq_input_pattern = "**[._]{fastq.gz,fq.gz,fastq.bz2,fq.bz2}"
