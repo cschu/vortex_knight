@@ -12,6 +12,7 @@ include { nevermore_qa } from "./qa"
 include { nevermore_decon } from "./decon"
 
 
+params.run_preprocessing = params.run_qc
 def do_preprocessing = (!params.skip_preprocessing || params.run_preprocessing)
 def do_alignment = params.run_gffquant || !params.skip_alignment
 def do_stream = params.gq_stream
