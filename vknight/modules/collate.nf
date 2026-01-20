@@ -1,6 +1,6 @@
 process collate_results {
 	container "ghcr.io/cschu/vknightr:main"
-	publishDir params.output_dir, mode: params.publish_mode
+	publishDir params.output_dir, mode: "copy"
 
 	input:
 	path(results)
