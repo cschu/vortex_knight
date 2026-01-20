@@ -95,7 +95,11 @@ workflow fastq_analysis {
 
 		if (run_metaphlan4) {
 			metaphlan4(fastq_ch, params.metaphlan4_db)
-			collate_metaphlan4_tables(metaphlan4.out.mp4_table)
+			collate_metaphlan4_tables(
+				run_metaphlan4.out.mp4_table
+					.map { sample, table -> return table }
+					.collect()
+			)
 		}
 
 		if (run_kraken2) {
