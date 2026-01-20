@@ -4,7 +4,7 @@ params.motus_n_marker_genes = 3
 
 
 process motus {
-    publishDir params.output_dir, mode: params.publish_mode
+    publishDir params.output_dir, mode: "copy"
 
     input:
     tuple val(sample), path(reads)

@@ -4,7 +4,7 @@ params.pathseq_filter_duplicates = true
 
 
 process pathseq {
-    publishDir params.output_dir, mode: params.publish_mode
+    publishDir params.output_dir, mode: "copy"
 
     input:
     tuple val(sample), path(bam)
@@ -37,11 +37,11 @@ process pathseq {
 
 	gatk --java-options \"-Xmx${maxmem}g\" PathSeqPipelineSpark \\
 		--input ${bam} \\
-		--filter-bwa-image ${params.pathseq_db_filter_bwa_image} \\
-		--kmer-file ${params.pathseq_db_kmer_file} \\
+		--filter-bwa-image ${pathseq_db}/pathseq_host.fa.img \\
+		--kmer-file ${pathseq_db}/pathseq_host.bfi \\
 		--min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
 		${microbe_seq} \\
-		--microbe-bwa-image ${params.pathseq_db_microbe_bwa_image} \\
+		--microbe-bwa-image ${params.pathseq_db}/pathseq_microbe.fa.img \\
 		--taxonomy-file ${params.pathseq_db_taxonomy_file} \\
 		--output ${sample.id}/${sample.id}.pathseq.bam \\
 		--scores-output ${sample.id}/${sample.id}.pathseq.scores \\

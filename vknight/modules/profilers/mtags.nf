@@ -30,7 +30,7 @@ process mtags_annotate {
 
 
 process mtags_merge {
-    publishDir params.output_dir, mode: params.publish_mode
+    publishDir params.output_dir, mode: "copy"
 
     input:
     path(mtags_bins)
