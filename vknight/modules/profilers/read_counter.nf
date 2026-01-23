@@ -1,4 +1,5 @@
 process read_counter {
+    container "ghcr.io/cschu/vknight_profilers:main"
     publishDir params.output_dir, mode: "copy"
 
     input:

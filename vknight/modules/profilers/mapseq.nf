@@ -1,4 +1,5 @@
 process mapseq {
+	container "ghcr.io/cschu/vknight_profilers:main"
 	label "mapseq"
 	publishDir params.output_dir, mode: "copy"
 
@@ -22,6 +23,7 @@ process mapseq {
 
 
 process mapseq_with_customdb {
+	container "ghcr.io/cschu/vknight_profilers:main"
 	label "mapseq"
 	publishDir params.output_dir, mode: "copy"
 
@@ -47,6 +49,7 @@ process mapseq_with_customdb {
 
 
 process collate_mapseq_tables {
+	container "ghcr.io/cschu/vknight_profilers:main"
     publishDir params.output_dir, mode: "copy"
 
     input:
