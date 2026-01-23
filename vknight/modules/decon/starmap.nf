@@ -2,7 +2,6 @@ process starmap {
 	cpus 2
 	memory { 8.GB * task.attempt }
 	time { 3.d * task.attempt }
-	// container "dceoy/star:latest"
 	container "quay.io/biocontainers/star:2.7.0b--0"
 	publishDir "${params.output_dir}/host_gene_counts", mode: "copy", pattern: "${sample.id}/*.tsv"
 
