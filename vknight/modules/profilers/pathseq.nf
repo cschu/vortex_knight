@@ -5,6 +5,7 @@ params.pathseq_filter_duplicates = true
 
 process pathseq {
     publishDir params.output_dir, mode: "copy"
+	container "quay.io/biocontainers/gatk:3.8--py36_4"
 
     input:
     tuple val(sample), path(bam)
@@ -18,12 +19,12 @@ process pathseq {
     script:
     def maxmem = task.memory.toGiga()
 
-	def microbe_seq = ""
-	if (params.pathseq_db_microbe_fasta) {
-		microbe_seq = "--microbe-fasta ${params.pathseq_db_microbe_fasta}"
-	} else {
-		microbe_seq = "--microbe-dict ${params.pathseq_db_microbe_dict}"
-	}
+	// def microbe_seq = ""
+	// if (params.pathseq_db_microbe_fasta) {
+	// 	microbe_seq = "--microbe-fasta ${params.pathseq_db_microbe_fasta}"
+	// } else {
+	// 	microbe_seq = "--microbe-dict ${params.pathseq_db_microbe_dict}"
+	// }
 
 	def filter_duplicates = params.pathseq_filter_duplicates == true
 	// if (params.pathseq_filter_duplicates) {
@@ -31,16 +32,21 @@ process pathseq {
 	// } else {
 	// 	filter_duplicates += "--filter-duplicates false"
 	// }
-
-    """
+	"""
     mkdir -p ${sample.id}
+
+	if [[ -f "${params.pathseq_db}/pathseq_microbe.fa" ]]; then
+		microbe_seq="--microbe-fasta ${params.pathseq_db}/pathseq_microbe.fa"
+	else
+		microbe_seq="--microbe-dict ${params.pathseq_db}/*.dict"
+	fi
 
 	gatk --java-options \"-Xmx${maxmem}g\" PathSeqPipelineSpark \\
 		--input ${bam} \\
 		--filter-bwa-image ${pathseq_db}/pathseq_host.fa.img \\
 		--kmer-file ${pathseq_db}/pathseq_host.bfi \\
 		--min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
-		${microbe_seq} \\
+		\${microbe_seq} \\
 		--microbe-bwa-image ${params.pathseq_db}/pathseq_microbe.fa.img \\
 		--taxonomy-file ${params.pathseq_db_taxonomy_file} \\
 		--output ${sample.id}/${sample.id}.pathseq.bam \\
