@@ -19,7 +19,7 @@ include { nevermore_simple_preprocessing } from "../../nevermore/workflows/never
 include { remove_host_kraken2; remove_host_kraken2_individual } from "../../nevermore/modules/decon/kraken2"
 include { flagstats; flagstats_libtype } from "../../nevermore/modules/stats"
 include { collate_results } from "../modules/collate"
-include { collate_stats } from "../../nevermore/modules/collate"
+include { collate_stats } from "../../nevermore/modules/stats"
 include { starmap } from "../modules/decon/starmap"
 
 include { vk_decon } from "./decon"
@@ -96,8 +96,8 @@ workflow fastq_analysis {
 		if (run_metaphlan4) {
 			metaphlan4(fastq_ch, params.metaphlan4_db)
 			collate_metaphlan4_tables(
-				run_metaphlan4.out.mp4_table
-					.map { sample, table -> return table }
+				metaphlan4.out.mp4_table
+					.map { sample, table -> table }
 					.collect()
 			)
 		}
