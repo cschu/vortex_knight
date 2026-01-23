@@ -37,7 +37,6 @@ workflow {
 		fastq_ch = bam_input.out.fastqs
 	} else {
 		fastq_input(
-			// Channel.fromPath(input_dir + "/*", type: "dir")
 			Channel.fromPath(fastq_input_pattern),
 			Channel.of(null)
 		)
