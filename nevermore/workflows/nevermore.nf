@@ -5,7 +5,7 @@ nextflow.enable.dsl=2
 include { nevermore_simple_preprocessing } from "./prep"
 include { fastqc } from "../modules/qc/fastqc"
 include { multiqc } from "../modules/qc/multiqc"
-include { collate_stats } from "../modules/collate"
+include { collate_stats } from "../modules/stats"
 include { nevermore_align } from "./align"
 include { nevermore_pack_reads } from "./pack"
 include { nevermore_qa } from "./qa"
