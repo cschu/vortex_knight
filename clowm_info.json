@@ -1,0 +1,19 @@
+{
+  "inputParameters": [
+    "input_dir"
+  ],
+  "outputParameters": [
+    "output_dir"
+  ],
+  "exampleParameters": {
+    "input_dir": "s3://workflow-exampledata/samestr/"
+  },
+  "resourceParameters": [
+    "GTDB_markers",
+	  "kraken_db",
+	  "metaphlan4_db",
+	  "motus_db",
+	  "pathseq_db"
+  ]
+}
+
