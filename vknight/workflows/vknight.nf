@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 include { kraken2 } from  "../modules/profilers/kraken2"
 include { mtags_extract; mtags_annotate; mtags_merge } from "../modules/profilers/mtags"
-include { motus } from  "../modules/profilers/motus"
+include { motus as motus3 } from  "../modules/profilers/motus"
 include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules/profilers/mapseq"
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
@@ -25,30 +25,14 @@ include { starmap } from "../modules/decon/starmap"
 include { vk_decon } from "./decon"
 
 
-if (!params.output_dir) {
-	params.output_dir = "vknight_out"
-}
-
 output_dir = "${params.output_dir}"
 
-if (!params.motus_min_length) {
-	params.motus_min_length = 30
-}
-
-if (!params.motus_n_marker_genes) {
-	params.motus_n_marker_genes = 1
-}
-
-if (!params.pathseq_min_clipped_read_length) {
-	params.pathseq_min_clipped_read_length = 31
-}
 
 params.kraken2_db = params.kraken_database
-params.motus_db = params.motus_database
+params.motus_database = params.motus_db
+params.motus3_db = params.motus_db
 params.read_counter_db = params.read_counter_database
 params.pathseq_db = params.pathseq_database
-
-
 
 def run_kraken2 = (!params.skip_kraken2 || params.run_kraken2);
 def run_mtags = (!params.skip_mtags || params.run_mtags || params.run_downstream_mtags);
@@ -108,7 +92,7 @@ workflow fastq_analysis {
 		}
 
 		if (run_motus) {
-			motus(fastq_ch, params.motus_db)
+			motus3(fastq_ch, params.motus3_db)
 			out_ch = out_ch.mix(motus.out.motus_out)
 		}
 
@@ -121,14 +105,15 @@ workflow fastq_analysis {
 			.map { sample, files -> return files }
 
 		if (run_mtags || run_mapseq) {
+
 			mtags_extract(fastq_ch)
 	
 			if (run_mtags) {
-				mtags_annotate(mtags_extract.out.mtags_out)
-	
-				mtags_merge(mtags_annotate.out.mtags_bins.collect())
 
+				mtags_annotate(mtags_extract.out.mtags_out)
+				mtags_merge(mtags_annotate.out.mtags_bins.collect())
 				out_ch = out_ch.mix(mtags_merge.out.mtags_tables)
+
 			}
 
 			if (run_mapseq) {
@@ -151,7 +136,9 @@ workflow fastq_analysis {
 	
 				collate_mapseq_tables(mapseq_ch)
 				out_ch = out_ch.mix(collate_mapseq_tables.out.ssu_tables)
+
 			}
+
 		}
 
 	emit:
