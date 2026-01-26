@@ -96,22 +96,25 @@ workflow fastq_analysis {
 
 		if (run_metaphlan4) {
 			metaphlan4(fastq_ch, params.metaphlan4_db)
-				// (Optional) keep your existing relative-abundance table merge
-				collate_metaphlan4_tables(
-					metaphlan4.out.mp4_table
-						.map { sample, table -> table }
-						.collect()
-				)
 
-			// NEW: extract per-sample "estimated reads" counts tables
-			mp4_counts_ch = extract_mp4_counts(metaphlan4.out.mp4_table)
-
-			// NEW: merge counts tables into one clade x sample matrix
-			collate_metaphlan4_counts(
-				mp4_counts_ch.out.mp4_counts
-					.map { sample, counts_table -> counts_table }
+			collate_metaphlan4_tables(
+				metaphlan4.out.mp4_table
+					.map { sample, table -> table }
 					.collect()
-				)
+			)
+
+			// call module and CAPTURE its outputs
+			def mp4_counts = extract_mp4_counts( metaphlan4.out.mp4_table )
+
+			// mp4_counts is ChannelOut -> access channel as mp4_counts.mp4_counts (NOT mp4_counts.out.mp4_counts)
+			def mp4_counts_matrix = collate_metaphlan4_counts(
+				mp4_counts.mp4_counts
+					.map { sample, counts_tsv -> counts_tsv }
+					.collect()
+			)
+
+			// optional: add matrix to your mixed results
+			out_ch = out_ch.mix( mp4_counts_matrix.mp4_counts_matrix )
 		}
 
 
