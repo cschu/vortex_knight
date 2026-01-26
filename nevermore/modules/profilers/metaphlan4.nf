@@ -88,7 +88,7 @@ process collate_metaphlan4_tables {
 // NEW: Extract per-sample estimated-read "counts" from rel_ab_w_read_stats table
 ////////////////////////////////////////////////////////////////////////////////
 process extract_mp4_counts {
-  publishDir params.output_dir, mode: "copy"
+  publishDir params.output_dir, mode: params.publish_mode ?: "copy"
   container "quay.io/biocontainers/metaphlan:4.1.0--pyhca03a8a_0"
   label "metaphlan4"
   label "mini"
@@ -102,52 +102,70 @@ process extract_mp4_counts {
   script:
   """
   python - <<'PY'
-  import re, sys
+  import re
 
   infile = "${mp4_table}"
   sample = "${sample.id}"
   outfile = f"{sample}.mp4.counts.tsv"
 
-  with open(infile, "r") as f:
-    lines = f.readlines()
-
-  # Find header row: first non-comment line
   header = None
-  header_i = None
-  for i, line in enumerate(lines):
-    if line.startswith("#") or not line.strip():
-      continue
-    header = line.rstrip("\\n").split("\\t")
-    header_i = i
-    break
+  data_started = False
 
-  if header is None:
-    raise SystemExit(f"ERROR: Could not find header row in {infile}")
-
-  # Find the estimated-reads column robustly by name
-  target_idx = None
-  for j, col in enumerate(header):
-    if re.search(r"estimated.*reads.*clade", col, re.IGNORECASE):
-      target_idx = j
-      break
-
-  if target_idx is None:
-    raise SystemExit("ERROR: Could not find estimated reads column in header: " + str(header))
-
-  clade_idx = 0  # MetaPhlAn clade name is first column
-
-  with open(outfile, "w") as out:
-    out.write("clade\\testimated_reads\\n")
-    for line in lines[header_i+1:]:
-      if not line.strip() or line.startswith("#"):
+  with open(infile, "r") as f:
+    for line in f:
+      line = line.rstrip("\\n")
+      if not line:
         continue
-      parts = line.rstrip("\\n").split("\\t")
+
+      # MetaPhlAn header is a comment line starting with '#clade_name'
+      if line.startswith("#clade_name"):
+        header = line.lstrip("#").split("\\t")
+        continue
+
+      # Skip other comments
+      if line.startswith("#"):
+        continue
+
+      # First non-comment data line begins after we have header
+      if header is None:
+        # If file is in unexpected format, fail early with a helpful message
+        raise SystemExit(f"ERROR: Could not find '#clade_name' header in {infile}")
+
+      # Now we're reading data rows
+      if not data_started:
+        # Determine column indices once
+        clade_idx = header.index("clade_name") if "clade_name" in header else 0
+
+        # Find estimated reads column by exact name (MetaPhlAn 4)
+        # fallback to regex if name changes slightly
+        if "estimated_number_of_reads_from_the_clade" in header:
+          target_idx = header.index("estimated_number_of_reads_from_the_clade")
+        else:
+          target_idx = None
+          for j, col in enumerate(header):
+            if re.search(r"estimated.*reads.*clade", col, re.IGNORECASE):
+              target_idx = j
+              break
+          if target_idx is None:
+            raise SystemExit("ERROR: Could not find estimated reads column in header: " + str(header))
+
+        out = open(outfile, "w")
+        out.write("clade\\testimated_reads\\n")
+        data_started = True
+
+      parts = line.split("\\t")
       if len(parts) <= max(clade_idx, target_idx):
         continue
       out.write(parts[clade_idx] + "\\t" + parts[target_idx] + "\\n")
+
+  if not data_started:
+    raise SystemExit(f"ERROR: No data rows found in {infile}")
+
+  out.close()
   PY
   """
 }
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
