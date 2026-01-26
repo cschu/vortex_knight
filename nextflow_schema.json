@@ -1,0 +1,139 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://raw.githubusercontent.com/grp-bork/samestr_flow/main/nextflow_schema.json",
+    "title": "samestr_flow pipeline parameters",
+    "description": "samestr_flow JSON schema",
+    "type": "object",
+    "definitions": {    
+        "preprocessing": {
+            "title": "preprocessing",
+            "type": "object",
+            "description": "Preprocessing parameters",
+            "default": "",
+            "properties": {
+                "qc_minlen": {
+                    "type": "integer",
+                    "description": "Minimum read length to pass quality control",
+                    "default": 45
+                },
+                "qc_params_shotgun": {
+                    "type": "string",
+                    "description": "bbduk quality control parameters",
+                    "default": "maq=3 qtrim=rl trimq=21 ktrim=r k=23 mlf=0.5 mink=11 hdist=1 entropy=0.5 entropywindow=50 entropyk=5 tpe tbo"
+                }
+            },
+            "required": [
+                "qc_minlen",
+                "qc_params_shotgun"
+            ]
+        },
+		"profilers": {
+			"title": "profilers",
+			"type": "object",
+			"description": "Profiler ensemble",
+            "default": "",
+            "properties": {
+				"run_kraken2": {
+            		"type": "boolean",
+            		"default": true
+        		},
+				"run_metaphlan4": {
+            		"type": "boolean",
+            		"default": true
+        		},
+				"run_motus": {
+            		"type": "boolean",
+            		"default": true
+        		},
+				"run_pathseq": {
+            		"type": "boolean",
+            		"default": true
+        		}
+			}
+		},
+        "required": {
+            "title": "Required",
+            "type": "object",
+            "description": "",
+            "default": "",
+            "properties": {
+                "input_dir": {
+                    "type": "string",
+                    "description": "Directory path to fastq files",
+                    "format": "directory-path"
+                },
+                "input_dir_structure": {
+                    "type": "string",
+                    "enum": ["flat", "tree"],
+                    "description": "Are the input files stored at base-level of input directory ('flat') or as one subdirectory per sample ('tree')?",
+                    "default": "flat"
+                },
+                "output_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to output directory"
+                },
+                "kraken2_db": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to kraken2 database",
+					"hidden": true,
+                    "default": ""
+                },
+                "motus3_db": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to mOTUs3 database",
+					"hidden": true,
+                    "default": ""
+                },
+                "metaphlan4_db": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to metaphlan4 database",
+					"hidden": true,
+                    "default": ""
+                },
+                "pathseq_db": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to PathSeq database",
+					"hidden": true,
+                    "default": ""
+                }
+			},
+            "required": [
+                "input_dir",
+                "output_dir"
+            ]
+        }
+    },
+    "allOf": [
+        {
+            "$ref": "#/definitions/preprocessing"
+        },
+        {
+            "$ref": "#/definitions/required"
+        }
+    ],
+    "properties": {
+        "run_preprocessing": {
+            "type": "boolean",
+            "default": true
+        },
+        "remove_host": {
+            "type": "boolean",
+            "default": true
+        },
+        "drop_orphans": {
+            "type": "boolean",
+            "hidden": true,
+            "default": true
+        },
+        "kraken2_min_hit_groups": {
+            "type": "integer",
+            "hidden": true,
+            "default": 10
+        }
+    }
+}
