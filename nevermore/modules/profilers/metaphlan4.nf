@@ -86,9 +86,13 @@ process collate_metaphlan4_tables {
 
 ////////////////////////////////////////////////////////////////////////////////
 // NEW: Extract per-sample estimated-read "counts" from rel_ab_w_read_stats table
+// - preserves the leading "#mpa_..." line (if present)
+// - outputs a small 2-column TSV:
+//     #mpa_...
+//     clade_name  estimated_number_of_reads_from_the_clade
 ////////////////////////////////////////////////////////////////////////////////
 process extract_mp4_counts {
-  publishDir params.output_dir, mode: params.publish_mode ?: "copy"
+  publishDir params.output_dir, mode: "copy"
   container "quay.io/biocontainers/metaphlan:4.1.0--pyhca03a8a_0"
   label "metaphlan4"
   label "mini"
@@ -100,16 +104,22 @@ process extract_mp4_counts {
   tuple val(sample), path("${sample.id}.mp4.counts.tsv"), emit: mp4_counts
 
   script:
+  def in_table = mp4_table
+  def out_counts = "${sample.id}.mp4.counts.tsv"
+
   """
   python - <<'PY'
   import re
 
-  infile = "${mp4_table}"
-  sample = "${sample.id}"
-  outfile = f"{sample}.mp4.counts.tsv"
+  infile = "${in_table}"
+  outfile = "${out_counts}"
 
+  mpa_line = None
   header = None
-  data_started = False
+  clade_idx = None
+  target_idx = None
+  out = None
+  wrote_any = False
 
   with open(infile, "r") as f:
     for line in f:
@@ -117,27 +127,18 @@ process extract_mp4_counts {
       if not line:
         continue
 
-      # MetaPhlAn header is a comment line starting with '#clade_name'
+      # Capture DB/version line (optional)
+      if line.startswith("#mpa_") and mpa_line is None:
+        mpa_line = line
+        continue
+
+      # Capture header row (MetaPhlAn prints it as a comment)
       if line.startswith("#clade_name"):
         header = line.lstrip("#").split("\\t")
-        continue
 
-      # Skip other comments
-      if line.startswith("#"):
-        continue
-
-      # First non-comment data line begins after we have header
-      if header is None:
-        # If file is in unexpected format, fail early with a helpful message
-        raise SystemExit(f"ERROR: Could not find '#clade_name' header in {infile}")
-
-      # Now we're reading data rows
-      if not data_started:
-        # Determine column indices once
+        # Determine indices once
         clade_idx = header.index("clade_name") if "clade_name" in header else 0
 
-        # Find estimated reads column by exact name (MetaPhlAn 4)
-        # fallback to regex if name changes slightly
         if "estimated_number_of_reads_from_the_clade" in header:
           target_idx = header.index("estimated_number_of_reads_from_the_clade")
         else:
@@ -149,19 +150,35 @@ process extract_mp4_counts {
           if target_idx is None:
             raise SystemExit("ERROR: Could not find estimated reads column in header: " + str(header))
 
+        continue
+
+      # Skip any other comment lines
+      if line.startswith("#"):
+        continue
+
+      # First data row requires that we already parsed the header
+      if header is None or clade_idx is None or target_idx is None:
+        raise SystemExit(f"ERROR: Could not find '#clade_name' header in {infile}")
+
+      # Open output on first data line (keeps behaviour stable)
+      if out is None:
         out = open(outfile, "w")
-        out.write("clade\\testimated_reads\\n")
-        data_started = True
+        if mpa_line:
+          out.write(mpa_line + "\\n")
+        out.write("clade_name\\testimated_number_of_reads_from_the_clade\\n")
 
       parts = line.split("\\t")
       if len(parts) <= max(clade_idx, target_idx):
         continue
+
       out.write(parts[clade_idx] + "\\t" + parts[target_idx] + "\\n")
+      wrote_any = True
 
-  if not data_started:
+  if out is not None:
+    out.close()
+
+  if not wrote_any:
     raise SystemExit(f"ERROR: No data rows found in {infile}")
-
-  out.close()
   PY
   """
 }
@@ -171,14 +188,14 @@ process extract_mp4_counts {
 // NEW: Merge all per-sample counts tables into one matrix (clade x sample)
 // - copies the leading "#mpa_..." line from the first input counts file (if present)
 // - writes header as: clade_name <sample>.mp4 ...
-// - reads per-sample counts files that look like:
-//     #mpa_...
-//     clade_name    estimated_number_of_reads_from_the_clade
-//     k__Bacteria   48678090
+// - supports both column-header variants:
+//     clade_name + estimated_number_of_reads_from_the_clade   (preferred)
+//     clade      + estimated_reads                            (legacy)
 ////////////////////////////////////////////////////////////////////////////////
 process collate_metaphlan4_counts {
   publishDir params.output_dir, mode: "copy"
   container "quay.io/biocontainers/metaphlan:4.1.0--pyhca03a8a_0"
+  label "metaphlan4"
   label "mini"
 
   input:
@@ -188,6 +205,8 @@ process collate_metaphlan4_counts {
   path("metaphlan4_counts_matrix.tsv"), emit: mp4_counts_matrix
 
   script:
+  def out_matrix = "metaphlan4_counts_matrix.tsv"
+
   """
   python - <<'PY'
   import os, re, csv
@@ -197,7 +216,7 @@ process collate_metaphlan4_counts {
   if not files:
     raise SystemExit("ERROR: No count tables provided")
 
-  # Copy the MetaPhlAn database/version header if present
+  # Copy MetaPhlAn database/version line from the first file (optional)
   mpa_line = None
   with open(files[0], "r") as f0:
     for line in f0:
@@ -210,7 +229,7 @@ process collate_metaphlan4_counts {
     s = re.sub(r"\\.mp4\\.counts\\.tsv\$", "", base)
     return f"{s}.mp4"
 
-  counts = defaultdict(dict)  # clade -> {sample: value}
+  counts = defaultdict(dict)
   samples = []
 
   for fp in files:
@@ -218,22 +237,19 @@ process collate_metaphlan4_counts {
     samples.append(s)
 
     with open(fp, "r", newline="") as f:
-      # Skip initial comment lines (e.g. #mpa_...)
-      first_data_line = None
+      # Find the first non-comment line (= header)
+      header_line = None
       for line in f:
-        if line.startswith("#"):
+        if line.startswith("#") or not line.strip():
           continue
-        first_data_line = line
+        header_line = line
         break
 
-      if first_data_line is None:
+      if header_line is None:
         raise SystemExit(f"ERROR: No header/data found in {fp}")
 
-      # Build a DictReader starting from the header line we just found
-      header = first_data_line.rstrip("\\n").split("\\t")
+      header = header_line.rstrip("\\n").split("\\t")
 
-      # Determine column names (support both old/new extractors)
-      # Preferred:
       clade_col = "clade_name" if "clade_name" in header else ("clade" if "clade" in header else None)
       val_col = (
         "estimated_number_of_reads_from_the_clade"
@@ -244,20 +260,17 @@ process collate_metaphlan4_counts {
       if clade_col is None or val_col is None:
         raise SystemExit(f"ERROR: Unexpected header in {fp}: {header}")
 
-      # Now read the rest of the file as TSV with that header
       reader = csv.DictReader(f, fieldnames=header, delimiter="\\t")
       for row in reader:
-        if not row:
-          continue
         clade = row.get(clade_col)
         val = row.get(val_col)
-        if clade is None or val is None:
+        if not clade or val is None:
           continue
         counts[clade][s] = val
 
   samples = sorted(set(samples))
 
-  with open("metaphlan4_counts_matrix.tsv", "w", newline="") as out:
+  with open("${out_matrix}", "w", newline="") as out:
     if mpa_line:
       out.write(mpa_line + "\\n")
     w = csv.writer(out, delimiter="\\t")
