@@ -167,9 +167,14 @@ process extract_mp4_counts {
 }
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // NEW: Merge all per-sample counts tables into one matrix (clade x sample)
+// - copies the leading "#mpa_..." line from the first input counts file (if present)
+// - writes header as: clade_name <sample>.mp4 ...
+// - reads per-sample counts files that look like:
+//     #mpa_...
+//     clade_name    estimated_number_of_reads_from_the_clade
+//     k__Bacteria   48678090
 ////////////////////////////////////////////////////////////////////////////////
 process collate_metaphlan4_counts {
   publishDir params.output_dir, mode: "copy"
@@ -188,14 +193,22 @@ process collate_metaphlan4_counts {
   import os, re, csv
   from collections import defaultdict
 
-  # Nextflow passes a whitespace-separated list of paths in the interpolation below
   files = "${count_tables}".split()
   if not files:
     raise SystemExit("ERROR: No count tables provided")
 
+  # Copy the MetaPhlAn database/version header if present
+  mpa_line = None
+  with open(files[0], "r") as f0:
+    for line in f0:
+      if line.startswith("#mpa_"):
+        mpa_line = line.rstrip("\\n")
+        break
+
   def sample_from_path(p):
     base = os.path.basename(p)
-    return re.sub(r"\\.mp4\\.counts\\.tsv\$", "", base)
+    s = re.sub(r"\\.mp4\\.counts\\.tsv\$", "", base)
+    return f"{s}.mp4"
 
   counts = defaultdict(dict)  # clade -> {sample: value}
   samples = []
@@ -203,21 +216,54 @@ process collate_metaphlan4_counts {
   for fp in files:
     s = sample_from_path(fp)
     samples.append(s)
-    with open(fp, newline="") as f:
-      rdr = csv.DictReader(f, delimiter="\\t")
-      for row in rdr:
-        clade = row["clade"]
-        val = row["estimated_reads"]
+
+    with open(fp, "r", newline="") as f:
+      # Skip initial comment lines (e.g. #mpa_...)
+      first_data_line = None
+      for line in f:
+        if line.startswith("#"):
+          continue
+        first_data_line = line
+        break
+
+      if first_data_line is None:
+        raise SystemExit(f"ERROR: No header/data found in {fp}")
+
+      # Build a DictReader starting from the header line we just found
+      header = first_data_line.rstrip("\\n").split("\\t")
+
+      # Determine column names (support both old/new extractors)
+      # Preferred:
+      clade_col = "clade_name" if "clade_name" in header else ("clade" if "clade" in header else None)
+      val_col = (
+        "estimated_number_of_reads_from_the_clade"
+        if "estimated_number_of_reads_from_the_clade" in header
+        else ("estimated_reads" if "estimated_reads" in header else None)
+      )
+
+      if clade_col is None or val_col is None:
+        raise SystemExit(f"ERROR: Unexpected header in {fp}: {header}")
+
+      # Now read the rest of the file as TSV with that header
+      reader = csv.DictReader(f, fieldnames=header, delimiter="\\t")
+      for row in reader:
+        if not row:
+          continue
+        clade = row.get(clade_col)
+        val = row.get(val_col)
+        if clade is None or val is None:
+          continue
         counts[clade][s] = val
 
   samples = sorted(set(samples))
 
   with open("metaphlan4_counts_matrix.tsv", "w", newline="") as out:
+    if mpa_line:
+      out.write(mpa_line + "\\n")
     w = csv.writer(out, delimiter="\\t")
-    w.writerow(["clade"] + samples)
+    w.writerow(["clade_name"] + samples)
     for clade in sorted(counts.keys()):
       w.writerow([clade] + [counts[clade].get(s, "0") for s in samples])
   PY
   """
 }
-
