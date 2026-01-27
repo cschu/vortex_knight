@@ -173,7 +173,7 @@ process extract_mp4_counts {
 ////////////////////////////////////////////////////////////////////////////////
 process collate_metaphlan4_counts {
   publishDir params.output_dir, mode: "copy"
-  container "python:3.11-slim"
+  container "quay.io/biocontainers/metaphlan:4.1.0--pyhca03a8a_0"
   label "mini"
 
   input:
