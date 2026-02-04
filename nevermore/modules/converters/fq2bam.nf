@@ -1,5 +1,6 @@
 process fq2bam {
 	container "quay.io/biocontainers/bbmap:39.06--h92535d8_0"
+	label "process_high"
 
     input:
     tuple val(sample), path(fastqs)

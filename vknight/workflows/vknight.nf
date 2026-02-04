@@ -41,7 +41,7 @@ def run_motus = (!params.skip_motus || params.run_motus);
 def run_pathseq = (!params.skip_pathseq || params.run_pathseq);
 def run_read_counter = (!params.skip_read_counter || params.run_read_counter)
 def run_idtaxa = (!params.skip_idtaxa || params.run_idtaxa)
-def run_metaphlan4 = (!params.skip_metaphlan4 || params.run_metaphlan4)
+def run_metaphlan4 = false // (!params.skip_metaphlan4 || params.run_metaphlan4)
 
 def get_basecounts = (!params.skip_basecounts || params.run_basecounts);
 

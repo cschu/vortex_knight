@@ -3,6 +3,7 @@ process bam2fq {
     input:
     tuple val(sample), path(bam)
     val(keep_unmapped)
+    label "process_high"
 
     output:
     tuple val(sample), path("fastq/${sample.id}/${sample.id}*.fastq.gz"), emit: reads

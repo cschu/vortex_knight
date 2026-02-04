@@ -6,6 +6,7 @@ params.pathseq_filter_duplicates = true
 process pathseq {
     publishDir params.output_dir, mode: "copy"
 	container "quay.io/biocontainers/gatk:3.8--py36_4"
+	label "large"
 
     input:
     tuple val(sample), path(bam)
