@@ -93,7 +93,7 @@ workflow fastq_analysis {
 
 		if (run_motus) {
 			motus3(fastq_ch, params.motus3_db)
-			out_ch = out_ch.mix(motus.out.motus_out)
+			out_ch = out_ch.mix(motus3.out.motus_out)
 		}
 
 		if (run_read_counter) {
