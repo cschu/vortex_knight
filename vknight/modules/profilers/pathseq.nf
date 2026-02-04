@@ -33,21 +33,21 @@ process pathseq {
 	// } else {
 	// 	filter_duplicates += "--filter-duplicates false"
 	// }
+
+	// if [[ -f "${params.pathseq_db}/pathseq_microbe.fa" ]]; then
+	// 	microbe_seq=""
+	// else
+	// 	microbe_seq="--microbe-dict ${params.pathseq_db}/*.dict"
+	// fi
 	"""
     mkdir -p ${sample.id}
-
-	if [[ -f "${params.pathseq_db}/pathseq_microbe.fa" ]]; then
-		microbe_seq="--microbe-fasta ${params.pathseq_db}/pathseq_microbe.fa"
-	else
-		microbe_seq="--microbe-dict ${params.pathseq_db}/*.dict"
-	fi
 
 	gatk --java-options \"-Xmx${maxmem}g\" PathSeqPipelineSpark \\
 		--input ${bam} \\
 		--filter-bwa-image ${pathseq_db}/pathseq_host.fa.img \\
 		--kmer-file ${pathseq_db}/pathseq_host.bfi \\
 		--min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
-		\${microbe_seq} \\
+		--microbe-fasta ${params.pathseq_db}/pathseq_microbe.fa \\
 		--microbe-bwa-image ${pathseq_db}/pathseq_microbe.fa.img \\
 		--taxonomy-file ${pathseq_db}/pathseq_taxonomy.db \\
 		--output ${sample.id}/${sample.id}.pathseq.bam \\
