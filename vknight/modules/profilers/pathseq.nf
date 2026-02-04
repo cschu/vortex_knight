@@ -47,8 +47,8 @@ process pathseq {
 		--kmer-file ${pathseq_db}/pathseq_host.bfi \\
 		--min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
 		\${microbe_seq} \\
-		--microbe-bwa-image ${params.pathseq_db}/pathseq_microbe.fa.img \\
-		--taxonomy-file ${params.pathseq_db_taxonomy_file} \\
+		--microbe-bwa-image ${pathseq_db}/pathseq_microbe.fa.img \\
+		--taxonomy-file ${pathseq_db}/pathseq_taxonomy.db \\
 		--output ${sample.id}/${sample.id}.pathseq.bam \\
 		--scores-output ${sample.id}/${sample.id}.pathseq.scores \\
 		--score-metrics ${sample.id}/${sample.id}.pathseq.score_metrics \\
