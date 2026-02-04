@@ -1,6 +1,7 @@
 process kraken2 {
     publishDir params.output_dir, mode: "copy"
-    container "registry.git.embl.org/schudoma/kraken2-docker:latest"
+    // container "registry.git.embl.org/schudoma/kraken2-docker:latest"
+    container "quay.io/biocontainers/kraken2:2.17.1--pl5321h077b44d_0"
 	label 'kraken2'
 	label "large"
 

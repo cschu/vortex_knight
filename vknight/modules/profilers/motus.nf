@@ -4,9 +4,10 @@ params.motus_n_marker_genes = 3
 
 
 process motus {
+    container "quay.io/biocontainers/motus:3.1.0--pyhdfd78af_0"
     publishDir params.output_dir, mode: "copy"
     label "process_high"
-    
+
     input:
     tuple val(sample), path(reads)
 	path(motus_db)
