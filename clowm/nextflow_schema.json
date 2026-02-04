@@ -30,14 +30,10 @@
 		"profilers": {
 			"title": "profilers",
 			"type": "object",
-			"description": "Profiler ensemble",
+			"description": "Profilers",
             "default": "",
             "properties": {
 				"run_kraken2": {
-            		"type": "boolean",
-            		"default": true
-        		},
-				"run_metaphlan4": {
             		"type": "boolean",
             		"default": true
         		},
@@ -87,13 +83,6 @@
 					"hidden": true,
                     "default": ""
                 },
-                "metaphlan4_db": {
-                    "type": "string",
-                    "format": "directory-path",
-                    "description": "Path to metaphlan4 database",
-					"hidden": true,
-                    "default": ""
-                },
                 "pathseq_db": {
                     "type": "string",
                     "format": "directory-path",
@@ -116,24 +105,5 @@
             "$ref": "#/definitions/required"
         }
     ],
-    "properties": {
-        "run_preprocessing": {
-            "type": "boolean",
-            "default": true
-        },
-        "remove_host": {
-            "type": "boolean",
-            "default": true
-        },
-        "drop_orphans": {
-            "type": "boolean",
-            "hidden": true,
-            "default": true
-        },
-        "kraken2_min_hit_groups": {
-            "type": "integer",
-            "hidden": true,
-            "default": 10
-        }
-    }
+    "properties": {}
 }
