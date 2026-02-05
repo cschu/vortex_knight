@@ -10,7 +10,7 @@ process pathseq {
 	// needs to be gatk4!
 	// container "quay.io/biocontainers/gatk:3.8--py36_4"
 	container "registry.git.embl.org/schudoma/pathseq-docker:latest"
-	label "large"
+	label "highmemXLarge"
 
     input:
     tuple val(sample), path(bam)
