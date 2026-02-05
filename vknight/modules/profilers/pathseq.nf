@@ -5,7 +5,11 @@ params.pathseq_filter_duplicates = true
 
 process pathseq {
     publishDir params.output_dir, mode: "copy"
-	container "quay.io/biocontainers/gatk:3.8--py36_4"
+	// biocontainers docker image causes issues on EMBL HPC
+	// https://gatk.broadinstitute.org/hc/en-us/community/posts/360078378372--Could-not-determine-local-host-name
+	// needs to be gatk4!
+	// container "quay.io/biocontainers/gatk:3.8--py36_4"
+	container "registry.git.embl.org/schudoma/pathseq-docker:latest"
 	label "large"
 
     input:
