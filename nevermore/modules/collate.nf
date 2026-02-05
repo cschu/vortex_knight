@@ -1,4 +1,5 @@
 process collate_stats {
+    container "ghcr.io/astral-sh/uv:python3.14-trixie-slim"
     label "default"
 
     input:

@@ -34,7 +34,7 @@ process transfer_bams {
 
 
 process prepare_fastqs {
-	container "registry.git.embl.org/schudoma/portraits_metatraits:latest"
+	container "ghcr.io/astral-sh/uv:python3.14-trixie-slim"
 	label "default"
 
 	input:

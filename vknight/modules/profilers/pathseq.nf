@@ -9,7 +9,8 @@ process pathseq {
 	// https://gatk.broadinstitute.org/hc/en-us/community/posts/360078378372--Could-not-determine-local-host-name
 	// needs to be gatk4!
 	// container "quay.io/biocontainers/gatk:3.8--py36_4"
-	container "registry.git.embl.org/schudoma/pathseq-docker:latest"
+	// container "registry.git.embl.org/schudoma/pathseq-docker:latest"
+	container "registry.git.embl.org/schudoma/pathseq-docker:with_user"
 	label "highmemXLarge"
 
     input:
@@ -51,7 +52,7 @@ process pathseq {
 		--filter-bwa-image ${pathseq_db}/pathseq_host.fa.img \\
 		--kmer-file ${pathseq_db}/pathseq_host.bfi \\
 		--min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
-		--microbe-fasta ${params.pathseq_db}/pathseq_microbe.fa \\
+		--microbe-fasta ${pathseq_db}/pathseq_microbe.fa \\
 		--microbe-bwa-image ${pathseq_db}/pathseq_microbe.fa.img \\
 		--taxonomy-file ${pathseq_db}/pathseq_taxonomy.db \\
 		--output ${sample.id}/${sample.id}.pathseq.bam \\
