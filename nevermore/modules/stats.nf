@@ -22,8 +22,7 @@ process flagstats {
 
 
 process flagstats_libtype {
-    // container "ghcr.io/astral-sh/uv:python3.14-trixie-slim"
-    container "registry.git.embl.org/schudoma/portraits_metatraits:latest"
+    container "quay.io/biocontainers/gawk:5.1.0--2"
     label "default"
     publishDir "${params.output_dir}", mode: "copy"
 
