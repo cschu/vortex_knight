@@ -42,6 +42,7 @@ process flagstats_libtype {
 
 
 process collate_stats {
+    container "registry.git.embl.org/schudoma/portraits_metatraits:latest"
     label "default"
 
     input:
