@@ -18,7 +18,7 @@ process run_motus {
 
     output:
     tuple val(sample), path("${sample.id}/${sample.id}.motus.txt"), emit: motus_profile
-    tuple val(sample), path("${sample.id}/${sample.id}.motus.bam"), emit: motus_bam, optional: (params.motus_run_mapsnv == true) ? true : false
+    tuple val(sample), path("${sample.id}/${sample.id}.motus.bam"), emit: motus_bam, optional: (params.motus_run_mapsnv == true) ? false : true
     tuple val(sample), path("${sample.id}.MOTUS_DONE"), emit: done_sentinel
 
     script:
