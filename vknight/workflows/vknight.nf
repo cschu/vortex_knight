@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 include { kraken2 } from  "../modules/profilers/kraken2"
 include { mtags_extract; mtags_annotate; mtags_merge } from "../modules/profilers/mtags"
-include { motus as motus3 } from  "../modules/profilers/motus"
+include { run_motus as motus3 } from  "../modules/profilers/motus"
 include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules/profilers/mapseq"
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"

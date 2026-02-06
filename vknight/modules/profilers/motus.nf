@@ -7,8 +7,10 @@ params.motus_full_rank_taxonomy = false
 params.motus_print_counts = false
 
 process run_motus {
+    publishDir params.output_dir, mode: "copy", pattern: "**.motus.txt"
     container "quay.io/biocontainers/motus:3.1.0--pyhdfd78af_0"
     label "process_high"
+    label "motus"
 
     input:
     tuple val(sample), path(fastqs)
