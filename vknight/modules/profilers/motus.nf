@@ -89,7 +89,7 @@ process motus {
 	-g ${params.motus_n_marker_genes} \
 	-y ${motus_readcount_type} \
 	-db ${motus_db} \
-    -o ${sample.id}/${sample.id}.motus.txt
+    -o ${sample.id}/${sample.id}.motus.txt \
 	${input_files}
 
     ${mapsnv_cmd}
@@ -157,7 +157,7 @@ process motus4 {
 	-l ${params.motus_min_length} \
 	-g ${params.motus_n_marker_genes} \
 	-y ${motus4_readcount_type} \
-	-o ${sample.id}/${sample.id}.motus4.txt
+	-o ${sample.id}/${sample.id}.motus4.txt \
 	${input_files}
 
     touch MOTUS4_DONE_SENTINEL
