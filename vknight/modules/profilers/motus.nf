@@ -148,6 +148,9 @@ process motus4 {
     """
     set -e -o pipefail
     mkdir -p ${sample.id}
+
+    export MOTUS_DB=\$(readlink ${motus_db})
+
     motus profile -v 7 ${additional_options.join(" ")} \
 	-t ${task.cpus} \
 	-n ${sample.id} \
