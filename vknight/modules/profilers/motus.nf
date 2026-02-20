@@ -81,7 +81,7 @@ process motus {
     """
     set -e -o pipefail
     mkdir -p ${sample.id}
-    motus profile -v 7 -db ${motus_db} ${additional_options.join(" ")} \
+    motus profile -v 7 ${additional_options.join(" ")} \
 	-t ${task.cpus} \
 	-n ${sample.id} \
 	-k ${params.motus_tax_level} \
@@ -148,7 +148,7 @@ process motus4 {
     """
     set -e -o pipefail
     mkdir -p ${sample.id}
-    motus profile -v 7 -db ${motus_db} ${additional_options.join(" ")} \
+    motus profile -v 7 ${additional_options.join(" ")} \
 	-t ${task.cpus} \
 	-n ${sample.id} \
 	-k ${params.motus_tax_level} \
