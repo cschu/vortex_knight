@@ -11,8 +11,8 @@ process pathseq {
 	// container "quay.io/biocontainers/gatk:3.8--py36_4"
 	// container "registry.git.embl.org/schudoma/pathseq-docker:latest"
 	// container "registry.git.embl.org/schudoma/pathseq-docker:with_user2"
-	// container "broadinstitute/gatk:4.1.6.0"
-	container "quay.io/biocontainers/gatk4:4.6.2.0--py310hdfd78af_1"
+	container "broadinstitute/gatk:4.1.6.0"
+	// container "quay.io/biocontainers/gatk4:4.6.2.0--py310hdfd78af_1"
 	label "highmemXLarge"
 
     input:
@@ -46,16 +46,17 @@ process pathseq {
 	// else
 	// 	microbe_seq="--microbe-dict ${params.pathseq_db}/*.dict"
 	// fi
-		// --microbe-fasta ${pathseq_db}/pathseq_microbe.fa \\
+		// --microbe-dict ${pathseq_db}/pathseq_microbe.dict \\
 	"""
     mkdir -p ${sample.id}
 
 	gatk --java-options \"-Xmx${maxmem}g\" PathSeqPipelineSpark \\
+		--conf spark.hadoop.hadoop.security.authentication=simple \\
 		--input ${bam} \\
 		--filter-bwa-image ${pathseq_db}/pathseq_host.fa.img \\
 		--kmer-file ${pathseq_db}/pathseq_host.bfi \\
 		--min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
-		--microbe-dict ${pathseq_db}/pathseq_microbe.dict \\
+		--microbe-fasta ${pathseq_db}/pathseq_microbe.fa \\
 		--microbe-bwa-image ${pathseq_db}/pathseq_microbe.fa.img \\
 		--taxonomy-file ${pathseq_db}/pathseq_taxonomy.db \\
 		--output ${sample.id}/${sample.id}.pathseq.bam \\
