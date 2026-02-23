@@ -11,15 +11,16 @@ process run_motus {
     container "quay.io/biocontainers/motus:3.1.0--pyhdfd78af_0"
     label "process_high"
     label "motus"
+    tag "${sample.id}"
 
     input:
     tuple val(sample), path(fastqs)
 	path(motus_db)
 
     output:
-    tuple val(sample), path("${sample.id}/${sample.id}.motus.txt"), emit: motus_profile
-    tuple val(sample), path("${sample.id}/${sample.id}.motus.bam"), emit: motus_bam, optional: (params.motus_run_mapsnv == true) ? false : true
-    tuple val(sample), path("${sample.id}.MOTUS_DONE"), emit: done_sentinel
+    tuple val(sample), path("motus/${sample.id}/${sample.id}.motus.txt"), emit: motus_profile
+    tuple val(sample), path("motus/${sample.id}/${sample.id}.motus.bam"), emit: motus_bam, optional: (params.motus_run_mapsnv == true) ? false : true
+    tuple val(sample), path("motus/${sample.id}.MOTUS_DONE"), emit: done_sentinel
 
     script:
     def input_files = ""
@@ -54,7 +55,7 @@ process run_motus {
     }
     
     """
-    mkdir -p ${sample.id}
+    mkdir -p motus/${sample.id}/
     motus profile -v 7 -db ${motus_db} \
 	-t ${task.cpus} \
 	-n ${sample.id} \
@@ -64,7 +65,7 @@ process run_motus {
 	-l ${params.motus_min_length} \
 	-g ${params.motus_n_marker_genes} \
 	-y ${params.motus_readcount_type} \
-	${input_files} > ${sample.id}/${sample.id}.motus.txt
+	${input_files} > motus/${sample.id}/${sample.id}.motus.txt
 
     ${mapsnv_cmd}
     touch ${sample.id}.MOTUS_DONE
