@@ -24,41 +24,18 @@ process run_metaphlan4 {
 		samestr_params = "--samout ${sample.id}.mp4.sam.bz2"
 	}
 
-	// def r1_files = fastqs.findAll( { it.name.endsWith("_R1.fastq.gz") && !it.name.matches("(.*)(singles|orphans|chimeras)(.*)") } )
-	// def r2_files = fastqs.findAll( { it.name.endsWith("_R2.fastq.gz") } )
-	// def orphans = fastqs.findAll( { it.name.matches("(.*)(singles|orphans|chimeras)(.*)") } )
-
-	def input_files = []  //r1_files + r2_files + orphans
+	def input_files = []
 	input_files += fastqs.findAll( { it.name.endsWith("_R1.fastq.gz") && !it.name.matches("(.*)(singles|orphans|chimeras)(.*)") } )
 	input_files += fastqs.findAll( { it.name.endsWith("_R2.fastq.gz") } )
 	input_files += fastqs.findAll( { it.name.matches("(.*)(singles|orphans|chimeras)(.*)") } )
 	mp4_input = input_files.join(',')
 
-
-
-	// if (r1_files.size() != 0) {
-	// 				input_files += "--fastq-r1 ${r1_files.join(' ')}"
-	// }
-	// 			if (r2_files.size() != 0) {
-	// 				input_files += " --fastq-r2 ${r2_files.join(' ')}"
-	// 			}
-	// 			if (orphans.size() != 0) {
-	// 				input_files += " --fastq-orphans ${orphans.join(' ')}"
-	// 			}
-
-	
-	// if (fastqs instanceof Collection && fastqs.size() == 2) {
-	// 	mp4_input = "${sample.id}_R1.fastq.gz,${sample.id}_R2.fastq.gz"
-	// } else if (fastqs instanceof Collection && fastqs.size() == 3) {
-	// 	mp4_input = "${sample.id}_R1.fastq.gz,${sample.id}_R2.fastq.gz,${sample.id}.singles_R1.fastq.gz"
-	// } else {
-	// 	mp4_input = "${fastqs}"
-	// }
+	def mp4_counts = (params.mp4_with_readcounts) ? "rel_ab_w_read_stats" : "rel_ab"
 
 	"""
 	mkdir -p tmp/
 
-	metaphlan ${mp4_input} ${mp4_params} ${bt2_out} -o ${sample.id}.mp4.txt ${samestr_params} -t rel_ab
+	metaphlan ${mp4_input} ${mp4_params} ${bt2_out} -o ${sample.id}.mp4.txt ${samestr_params} -t ${mp4_counts}
 	touch ${sample.id}.mp4.sam.bz2
 	"""
 }
@@ -93,7 +70,6 @@ process combine_metaphlan4 {
 
 	script:
 	def mp4_params = "--input_type bowtie2out --nproc ${task.cpus} --tmp_dir tmp/"
-	def bt2_out = "--bowtie2out ${sample.id}.bowtie2.bz2"
 	def mp4_input = "${sample.id}.bowtie2.bz2,${sample.id}.singles.bowtie2.bz2"
 	"""
 	mkdir -p metaphlan4/${sample.id}/
