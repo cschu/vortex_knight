@@ -9,7 +9,7 @@ include { mapseq; mapseq_with_customdb; collate_mapseq_tables } from "../modules
 include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
 include { idtaxa } from "../modules/profilers/idtaxa"
-include { run_metaphlan4 as metaphlan4; collate_metaphlan4_tables } from "../../nevermore/modules/profilers/metaphlan4"
+include { run_metaphlan4 as metaphlan4; collate_metaphlan4_tables; extract_mp4_counts; collate_metaphlan4_counts } from "../../nevermore/modules/profilers/metaphlan4"
 
 include { fq2fa } from "../../nevermore/modules/converters/fq2fa"
 include { fastqc } from "../../nevermore/modules/qc/fastqc"
@@ -52,7 +52,7 @@ def run_metaphlan4 = (!params.skip_metaphlan4 || params.run_metaphlan4)
 def get_basecounts = (!params.skip_basecounts || params.run_basecounts);
 
 def run_bam_analysis = run_pathseq && !params.amplicon_seq
-def run_fastq_analysis = (run_kraken2 || run_mtags || run_mapseq || run_motus || run_read_counter) && !params.amplicon_seq
+def run_fastq_analysis = (run_metaphlan4 || run_kraken2 || run_mtags || run_mapseq || run_motus || run_read_counter) && !params.amplicon_seq
 def run_amplicon_analysis = params.amplicon_seq
 
 
@@ -90,6 +90,20 @@ workflow fastq_analysis {
 					.map { sample, table -> table }
 					.collect()
 			)
+
+			if (params.mp4_with_readcounts) {
+
+				// call module and CAPTURE its outputs
+				def mp4_counts = extract_mp4_counts( metaphlan4.out.mp4_table )
+
+				// mp4_counts is ChannelOut -> access channel as mp4_counts.mp4_counts (NOT mp4_counts.out.mp4_counts)
+				def mp4_counts_matrix = collate_metaphlan4_counts(
+					mp4_counts.mp4_counts
+						.map { sample, counts_tsv -> counts_tsv }
+						.collect()
+				)
+
+			}
 		}
 
 		if (run_kraken2) {
