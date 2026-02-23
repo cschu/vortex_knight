@@ -10,7 +10,7 @@ include { pathseq } from "../modules/profilers/pathseq"
 include { read_counter } from "../modules/profilers/read_counter"
 include { idtaxa } from "../modules/profilers/idtaxa"
 // include { run_metaphlan4 as metaphlan4; collate_metaphlan4_tables; extract_mp4_counts; collate_metaphlan4_counts } from "../../nevermore/modules/profilers/metaphlan4"
-include { run_metaphlan4 as metaphlan4; collate_metaphlan4_tables; collate_metaphlan4_counts } from "../../nevermore/modules/profilers/metaphlan4"
+include { run_metaphlan4 as metaphlan4; collate_metaphlan4_tables; collate_metaphlan4_tables } from "../../nevermore/modules/profilers/metaphlan4"
 
 include { fq2fa } from "../../nevermore/modules/converters/fq2fa"
 include { fastqc } from "../../nevermore/modules/qc/fastqc"
