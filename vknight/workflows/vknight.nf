@@ -270,7 +270,7 @@ workflow vknight_main {
 		if (!params.skip_collate) {
 			collate_results(
 				results_ch.collect(),
-				"${projectDir}/scripts/ExtractProfiledCounts_210823.R",
+				// "${projectDir}/scripts/ExtractProfiledCounts_210823.R",
 				params.GTDB_markers
 			)
 		}

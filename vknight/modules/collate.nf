@@ -4,7 +4,7 @@ process collate_results {
 
 	input:
 	path(results)
-	path(collate_script)
+	// path(collate_script)
 	path(gtdb_markers)
 
 	output:
@@ -49,8 +49,8 @@ process collate_results {
 
 
 
-	Rscript --vanilla ${collate_script} \
-		--libdir \$(dirname \$(readlink ${collate_script})) \
+	ExtractProfiledCounts_210823.R \
+		--libdir ${projectDir}/bin \
 		--gtdb_markers ${gtdb_markers} \
 		--kraken2_res_path kraken2/ \
 		--mOTUs_res_path motus/ \
