@@ -136,22 +136,13 @@ process motus4 {
 		input_files += " -s ${orphans.join(' ')}"
 	}
 
-    def additional_options = []
-    if (params.motus_full_rank_taxonomy == true) {
-        additional_options.add("-q")
-    }
-    
-    if (params.motus_print_counts) {
-        additional_options.add("-c")
-    }
-
     """
     set -e -o pipefail
     mkdir -p ${sample.id}
 
     export MOTUS_DB=\$(readlink ${motus_db})
 
-    motus profile -v 7 ${additional_options.join(" ")} \
+    motus profile -v 7 \
 	-t ${task.cpus} \
 	-n ${sample.id} \
 	-l ${params.motus_min_length} \
