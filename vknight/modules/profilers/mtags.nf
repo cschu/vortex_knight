@@ -1,4 +1,5 @@
 process mtags_extract {
+    container "ghcr.io/cschu/vknight_profilers:main"
     input:
     tuple val(sample), path(reads)
 
@@ -15,6 +16,7 @@ process mtags_extract {
 
 
 process mtags_annotate {
+    container "ghcr.io/cschu/vknight_profilers:main"
     input:
     tuple val(sample), path(seqs)
 
@@ -30,7 +32,8 @@ process mtags_annotate {
 
 
 process mtags_merge {
-    publishDir params.output_dir, mode: params.publish_mode
+    container "ghcr.io/cschu/vknight_profilers:main"
+    publishDir params.output_dir, mode: "copy"
 
     input:
     path(mtags_bins)

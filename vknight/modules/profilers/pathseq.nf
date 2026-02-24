@@ -4,51 +4,46 @@ params.pathseq_filter_duplicates = true
 
 
 process pathseq {
-    publishDir params.output_dir, mode: params.publish_mode
+    publishDir params.output_dir, mode: "copy", pattern: "**.scores"
+	container "broadinstitute/gatk:4.1.6.0"
+	// container "quay.io/biocontainers/gatk4:4.6.2.0--py310hdfd78af_1"
+	label "highmemXLarge"
+	tag "${sample.id}"
 
     input:
     tuple val(sample), path(bam)
 	path(pathseq_db)
 
     output:
-    tuple val(sample), path("${sample.id}/${sample.id}.pathseq.score*"), emit: scores
-    tuple val(sample), path("${sample.id}/${sample.id}.pathseq.bam*"), emit: bam
-	tuple val(sample), path("${sample.id}/${sample.id}.pathseq.filter_metrics"), emit: filter_metrics
+    tuple val(sample), path("pathseq/${sample.id}/${sample.id}.pathseq.score*"), emit: scores
+    tuple val(sample), path("pathseq/${sample.id}/${sample.id}.pathseq.bam*"), emit: bam
+	tuple val(sample), path("pathseq/${sample.id}/${sample.id}.pathseq.filter_metrics"), emit: filter_metrics
 
     script:
     def maxmem = task.memory.toGiga()
-
-	def microbe_seq = ""
-	if (params.pathseq_db_microbe_fasta) {
-		microbe_seq = "--microbe-fasta ${params.pathseq_db_microbe_fasta}"
-	} else {
-		microbe_seq = "--microbe-dict ${params.pathseq_db_microbe_dict}"
-	}
-
 	def filter_duplicates = params.pathseq_filter_duplicates == true
-	// if (params.pathseq_filter_duplicates) {
-	// 	filter_duplicates += "--filter-duplicates true"
-	// } else {
-	// 	filter_duplicates += "--filter-duplicates false"
-	// }
+	def microbe_seq_input = (params.new_pathseq) 
+		? "--microbe-dict ${params.pathseq_db}/pathseq_microbe.dict"
+		: "--microbe-fasta ${pathseq_db}/pathseq_microbe.fa"
 
-    """
-    mkdir -p ${sample.id}
+	"""
+    mkdir -p pathseq/${sample.id}/
 
 	gatk --java-options \"-Xmx${maxmem}g\" PathSeqPipelineSpark \\
+		--conf spark.hadoop.hadoop.security.authentication=simple \\
 		--input ${bam} \\
-		--filter-bwa-image ${params.pathseq_db_filter_bwa_image} \\
-		--kmer-file ${params.pathseq_db_kmer_file} \\
+		--filter-bwa-image ${pathseq_db}/pathseq_host.fa.img \\
+		--kmer-file ${pathseq_db}/pathseq_host.bfi \\
+		${microbe_seq_input} \\
+		--microbe-bwa-image ${pathseq_db}/pathseq_microbe.fa.img \\
+		--taxonomy-file ${pathseq_db}/pathseq_taxonomy.db \\
 		--min-clipped-read-length ${params.pathseq_min_clipped_read_length} \\
-		${microbe_seq} \\
-		--microbe-bwa-image ${params.pathseq_db_microbe_bwa_image} \\
-		--taxonomy-file ${params.pathseq_db_taxonomy_file} \\
-		--output ${sample.id}/${sample.id}.pathseq.bam \\
-		--scores-output ${sample.id}/${sample.id}.pathseq.scores \\
-		--score-metrics ${sample.id}/${sample.id}.pathseq.score_metrics \\
 		--is-host-aligned ${params.pathseq_skip_host_alignment} \\
 		--skip-quality-filters ${params.pathseq_skip_quality_filters} \\
-		--filter-metrics ${sample.id}/${sample.id}.pathseq.filter_metrics \\
-		--filter-duplicates ${filter_duplicates}
+		--filter-duplicates ${filter_duplicates} \\
+		--output pathseq/${sample.id}/${sample.id}.pathseq.bam \\
+		--scores-output pathseq/${sample.id}/${sample.id}.pathseq.scores \\
+		--score-metrics pathseq/${sample.id}/${sample.id}.pathseq.score_metrics \\
+		--filter-metrics pathseq/${sample.id}/${sample.id}.pathseq.filter_metrics
     """
 }

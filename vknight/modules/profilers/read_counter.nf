@@ -1,5 +1,6 @@
 process read_counter {
-    publishDir params.output_dir, mode: params.publish_mode
+    container "ghcr.io/cschu/vknight_profilers:main"
+    publishDir params.output_dir, mode: "copy"
 
     input:
     tuple val(sample), path(reads)

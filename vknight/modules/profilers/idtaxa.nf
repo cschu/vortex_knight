@@ -2,7 +2,9 @@ params.idtaxa_error_rate_threshold = 40
 params.idtaxa_strand = "both"
 
 process idtaxa {
-
+	container "ghcr.io/cschu/vknightr:main"
+	publishDir params.output_dir, mode: "copy"
+	
 	input:
 	tuple val(sample), path(fasta)
 	path(idtaxa_classifier_db)

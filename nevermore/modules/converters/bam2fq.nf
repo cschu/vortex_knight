@@ -1,9 +1,9 @@
 process bam2fq {
-    // publishDir params.output_dir, mode: params.publish_mode
-
+    container "quay.io/biocontainers/samtools:1.19.2--h50ea8bc_1"
     input:
     tuple val(sample), path(bam)
     val(keep_unmapped)
+    label "process_high"
 
     output:
     tuple val(sample), path("fastq/${sample.id}/${sample.id}*.fastq.gz"), emit: reads
@@ -41,6 +41,8 @@ process bam2fq {
                 fi;
         fi;
 
+        ls -l *.fastq.gz
+        ls -l fastq/${sample.id}/*.fastq.gz
         rm -rf *.fastq.gz
     fi;
     """

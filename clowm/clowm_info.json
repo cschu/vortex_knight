@@ -1,0 +1,17 @@
+{
+  "inputParameters": [
+    "input_dir"
+  ],
+  "outputParameters": [
+    "output_dir"
+  ],
+  "exampleParameters": {
+    "input_dir": ""
+  },
+  "resourceParameters": [
+    "kraken_db",
+	  "motus_db",
+	  "pathseq_db"
+  ]
+}
+

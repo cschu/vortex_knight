@@ -7,22 +7,18 @@ params.motus_full_rank_taxonomy = false
 params.motus_print_counts = false
 
 process run_motus {
-    publishDir params.output_dir, mode: "copy", pattern: "**.motus.txt"
     container "quay.io/biocontainers/motus:3.1.0--pyhdfd78af_0"
-    label "process_high"
-    label "motus"
-    tag "${sample.id}"
 
     input:
     tuple val(sample), path(fastqs)
 	path(motus_db)
 
     output:
-    tuple val(sample), path("motus/${sample.id}/${sample.id}.motus.txt"), emit: motus_profile
-    tuple val(sample), path("motus/${sample.id}/${sample.id}.motus.bam"), emit: motus_bam, optional: (params.motus_run_mapsnv == true) ? false : true
-    tuple val(sample), path("${sample.id}.MOTUS_DONE"), emit: done_sentinel
+    tuple val(sample), path("${sample.id}/${sample.id}.motus.txt"), emit: motus_profile
+    tuple val(sample), path("${sample.id}/${sample.id}.motus.bam"), emit: motus_bam
 
     script:
+
     def input_files = ""
 	def r1_files = fastqs.findAll( { it.name.endsWith("_R1.fastq.gz") && !it.name.matches("(.*)(singles|orphans|chimeras)(.*)") } )
 	def r2_files = fastqs.findAll( { it.name.endsWith("_R2.fastq.gz") } )
@@ -40,9 +36,13 @@ process run_motus {
 		input_files += " -s ${orphans.join(' ')}"
 	}
 
+
+    // def motus_input = (sample.is_paired) ? "-f ${sample.id}_R1.fastq.gz -r ${sample.id}_R2.fastq.gz" : "-s ${sample.id}_R1.fastq.gz";
     def mapsnv_cmd = ""
     if (params.motus_run_mapsnv) {
         mapsnv_cmd += "motus map_snv -t ${task.cpus} -db ${motus_db} ${input_files} > ${sample.id}/${sample.id}.motus.bam"
+    } else {
+        mapsnv_cmd += "touch ${sample.id}/${sample.id}.motus.bam"
     }
 
     def full_rank = ""
@@ -55,20 +55,9 @@ process run_motus {
     }
     
     """
-    mkdir -p motus/${sample.id}/
-    motus profile -v 7 -db ${motus_db} \
-	-t ${task.cpus} \
-	-n ${sample.id} \
-	-k ${params.motus_tax_level} \
-	${print_counts} \
-	${full_rank} \
-	-l ${params.motus_min_length} \
-	-g ${params.motus_n_marker_genes} \
-	-y ${params.motus_readcount_type} \
-	${input_files} > motus/${sample.id}/${sample.id}.motus.txt
-
+    mkdir -p ${sample.id}
+    motus profile -n ${sample.id} -t ${task.cpus} -k ${params.motus_tax_level} ${print_counts} -v 7 ${full_rank} -l ${params.motus_min_length} -g ${params.motus_n_marker_genes} -y ${params.motus_readcount_type} -db ${motus_db} ${input_files} > ${sample.id}/${sample.id}.motus.txt
     ${mapsnv_cmd}
-    touch ${sample.id}.MOTUS_DONE
     """
 
     // # generate profile
