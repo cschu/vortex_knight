@@ -27,7 +27,7 @@ process pathseq {
 		: "--microbe-fasta ${pathseq_db}/pathseq_microbe.fa"
 
 	"""
-    mkdir -p ${sample.id}
+    mkdir -p pathseq/${sample.id}/
 
 	gatk --java-options \"-Xmx${maxmem}g\" PathSeqPipelineSpark \\
 		--conf spark.hadoop.hadoop.security.authentication=simple \\
