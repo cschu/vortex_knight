@@ -115,6 +115,7 @@ process motus4 {
 
     output:
     tuple val(sample), path("${sample.id}/${sample.id}.motus4.txt"), emit: motus_profile
+    tuple val(sample), path("${sample.id}/${sample.id}.motus4.txt.relab"), emit: motus_profile_relab
     tuple val(sample), path("MOTUS4_DONE_SENTINEL")
 
     script:
@@ -148,8 +149,17 @@ process motus4 {
 	-l ${params.motus_min_length} \
 	-g ${params.motus_n_marker_genes} \
 	-y ${motus4_readcount_type} \
-	-o ${sample.id}/${sample.id}.motus4.txt \
+	-o ${sample.id}.motus4.txt \
 	${input_files}
+
+    dbfile=${motus_db}/mOTUsv4.0.gtdb.taxonomy.80mv.tsv.gz
+    head -n 1 ${sample.id}.motus4.txt > ${sample.id}/${sample.id}.motus4.txt
+    join -1 1 -2 1 <(zcat \$dbfile | head -n 1) <(head -n 2 ${sample.id}.motus4.txt | tail -n 1) | tr " " "\t" >> ${sample.id}/${sample.id}.motus4.txt
+    join -1 1 -2 1 <(zcat \$dbfile | tail -n +2) <(tail -n +3 ${sample.id}.motus4.txt | sed "s/ /@/g") | tr " " "\t" | sed "s/@/ /g" >> ${sample.id}/${sample.id}.motus4.txt
+
+    head -n 1 ${sample.id}.motus4.txt > ${sample.id}/${sample.id}.motus4.txt.relab
+    join -1 1 -2 1 <(zcat \$dbfile | head -n 1) <(head -n 2 ${sample.id}.motus4.txt | tail -n 1) | tr " " "\t" >> ${sample.id}/${sample.id}.motus4.txt.relab
+    join -1 1 -2 1 <(zcat \$dbfile | tail -n +2) <(tail -n +3 ${sample.id}.motus4.txt | sed "s/ /@/g") | tr " " "\t" | sed "s/@/ /g" >> ${sample.id}/${sample.id}.motus4.txt.relab
 
     touch MOTUS4_DONE_SENTINEL
     """
