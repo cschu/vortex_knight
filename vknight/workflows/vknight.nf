@@ -208,6 +208,7 @@ workflow amplicon_analysis {
 		results = out_ch
 }
 
+print "PARAMS: ${params}"
 
 workflow vknight_main {
 	take:
