@@ -2,7 +2,7 @@ params.kraken2_min_hit_groups = 10
 params.fix_read_ids = true
 
 process remove_host_kraken2_individual {
-	container "registry.git.embl.org/schudoma/kraken2-docker:latest"
+	container "ghcr.io/cschu/align-docker:v0.6.0"
 	label 'kraken2'
 	label "large"
 
@@ -167,7 +167,7 @@ process remove_host_kraken2_individual {
 }
 
 process remove_host_kraken2 {
-	container "registry.git.embl.org/schudoma/kraken2-docker:latest"
+	container "ghcr.io/cschu/align-docker:v0.6.0"
 	label 'kraken2'
 
     input:
